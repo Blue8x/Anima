@@ -1,6 +1,7 @@
 // Chat bubble widget
 
 import 'package:flutter/material.dart';
+import '../services/translation_service.dart';
 
 class ChatBubble extends StatelessWidget {
   final String message;
@@ -41,7 +42,7 @@ class ChatBubble extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              _formatTime(timestamp),
+              _formatTime(context, timestamp),
               style: TextStyle(
                 fontSize: 12,
                 color: isUser
@@ -57,16 +58,16 @@ class ChatBubble extends StatelessWidget {
     );
   }
 
-  String _formatTime(DateTime dateTime) {
+  String _formatTime(BuildContext context, DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
     if (difference.inMinutes < 1) {
-      return 'Now';
+      return tr(context, 'now');
     } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
+      return tr(context, 'minutesAgo').replaceAll('{n}', '${difference.inMinutes}');
     } else if (difference.inDays < 1) {
-      return '${difference.inHours}h ago';
+      return tr(context, 'hoursAgo').replaceAll('{n}', '${difference.inHours}');
     } else {
       return '${dateTime.month}/${dateTime.day}';
     }

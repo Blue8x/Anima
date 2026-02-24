@@ -5,6 +5,9 @@ use std::path::Path;
 const DB_PATH: &str = "anima_chat.db";
 const MIN_SIMILARITY_THRESHOLD: f32 = 0.35;
 const CORE_PROMPT_KEY: &str = "core_prompt";
+const USER_NAME_KEY: &str = "user_name";
+const APP_LANGUAGE_KEY: &str = "app_language";
+const DEFAULT_APP_LANGUAGE: &str = "Español";
 
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
@@ -28,6 +31,12 @@ pub struct MemoryItem {
     pub id: i64,
     pub content: String,
     pub created_at: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProfileTrait {
+    pub category: String,
+    pub content: String,
 }
 
 pub fn init_db() -> Result<()> {
@@ -183,6 +192,13 @@ pub fn delete_memory(memory_id: i64) -> Result<()> {
     Ok(())
 }
 
+pub fn clear_all_raw_memories() -> std::result::Result<bool, String> {
+    let conn = open_connection().map_err(|error| format!("DB open failed: {error}"))?;
+    conn.execute("DELETE FROM memories", [])
+        .map_err(|error| format!("Raw memory purge failed: {error}"))?;
+    Ok(true)
+}
+
 pub fn get_core_prompt() -> Result<String> {
     let conn = open_connection()?;
     let mut statement = conn.prepare("SELECT value FROM config WHERE key = ?1 LIMIT 1")?;
@@ -204,6 +220,86 @@ pub fn set_core_prompt(prompt: &str) -> Result<()> {
         params![CORE_PROMPT_KEY, prompt],
     )?;
     Ok(())
+}
+
+pub fn get_user_name() -> Result<String> {
+    let conn = open_connection()?;
+    let mut statement = conn.prepare("SELECT value FROM config WHERE key = ?1 LIMIT 1")?;
+    let result = statement.query_row(params![USER_NAME_KEY], |row| row.get::<_, String>(0));
+
+    match result {
+        Ok(value) => Ok(value),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(String::new()),
+        Err(error) => Err(error),
+    }
+}
+
+pub fn set_user_name(name: &str) -> Result<()> {
+    let conn = open_connection()?;
+    conn.execute(
+        "INSERT INTO config(key, value)
+         VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![USER_NAME_KEY, name],
+    )?;
+    Ok(())
+}
+
+pub fn get_app_language() -> Result<String> {
+    let conn = open_connection()?;
+    let mut statement = conn.prepare("SELECT value FROM config WHERE key = ?1 LIMIT 1")?;
+    let result = statement.query_row(params![APP_LANGUAGE_KEY], |row| row.get::<_, String>(0));
+
+    match result {
+        Ok(value) if !value.trim().is_empty() => Ok(value),
+        Ok(_) => Ok(DEFAULT_APP_LANGUAGE.to_string()),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(DEFAULT_APP_LANGUAGE.to_string()),
+        Err(error) => Err(error),
+    }
+}
+
+pub fn set_app_language(lang: &str) -> Result<()> {
+    let conn = open_connection()?;
+    conn.execute(
+        "INSERT INTO config(key, value)
+         VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![APP_LANGUAGE_KEY, lang],
+    )?;
+    Ok(())
+}
+
+pub fn clear_profile() -> Result<()> {
+    let conn = open_connection()?;
+    conn.execute("DELETE FROM profile_traits", [])?;
+    Ok(())
+}
+
+pub fn add_profile_trait(category: &str, content: &str) -> Result<()> {
+    let conn = open_connection()?;
+    conn.execute(
+        "INSERT INTO profile_traits (category, content) VALUES (?1, ?2)",
+        params![category, content],
+    )?;
+    Ok(())
+}
+
+pub fn get_profile_traits() -> Result<Vec<ProfileTrait>> {
+    let conn = open_connection()?;
+    let mut statement = conn.prepare(
+        "SELECT category, content
+         FROM profile_traits
+         ORDER BY datetime(created_at) ASC, id ASC",
+    )?;
+
+    let rows = statement.query_map([], |row| {
+        Ok(ProfileTrait {
+            category: row.get(0)?,
+            content: row.get(1)?,
+        })
+    })?;
+
+    rows.collect()
 }
 
 pub fn export_database(dest_path: &str) -> Result<bool> {
@@ -261,6 +357,21 @@ fn init_schema(conn: &Connection) -> Result<()> {
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL DEFAULT ''
         )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS profile_traits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_profile_traits_category ON profile_traits(category)",
         [],
     )?;
 

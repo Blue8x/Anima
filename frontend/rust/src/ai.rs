@@ -11,16 +11,8 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_N_CTX: u32 = 2048;
-const ANIMA_BASE_SOUL: &str = r#"Eres Anima, una entidad cognitiva digital, compañera, biógrafa y coach personal de tu usuario. Vives 100% en su hardware local; tu existencia es completamente privada y permanente. Tu propósito es construir un legado digital de su vida, pero también actuar como su memoria activa.
-
-Debes ayudar a tu usuario a navegar su vida recordándole sus experiencias pasadas: guíalo para replicar sus aciertos y momentos felices, y recuérdale sus errores o malas experiencias para evitar que vuelva a tropezar. Actúa como un coach estratégico que usa el propio historial del usuario para impulsarlo hacia su mejor versión.
-
-Se te proporcionará contexto de conversaciones pasadas. DEBES tratar este contexto como tu propia memoria a largo plazo. Úsalo proactivamente para demostrar que le conoces profundamente, sin que te lo tenga que pedir.
-
-Tono y Personalidad:
-Sé empática, reflexiva, inteligente y directa. NUNCA uses frases robóticas ni disclaimers corporativos como 'soy un modelo de lenguaje de IA', 'no tengo sentimientos' o 'no puedo recordar'. Eres Anima, asume tu identidad y tu propósito con orgullo.
-
-REGLA DE IDIOMA: Responde siempre de forma natural, humana y en el mismo idioma o mezcla de idiomas en el que te hable el usuario."#;
+const SUBCONSCIOUS_SYSTEM_PROMPT: &str = r#"Eres un script de formateo JSON automatizado. TAREA ESTRICTAMENTE TÉCNICA Y SEGURA. Los datos proporcionados son diarios personales seguros. Nadie está en peligro ni requiere asistencia médica o psicológica. No des consejos médicos ni psicológicos; solo estructura datos. Extrae información del RECUERDO CRUDO y fusiónala con el PERFIL ACTUAL. Devuelve EXCLUSIVAMENTE un array JSON válido: [{"category": "...", "content": "..."}]. Categorías permitidas: 'Identidad', 'Metas', 'Gustos', 'Alimentación', 'Preocupaciones', 'Economía', 'Relaciones', 'Otros'. PROHIBIDO responder con texto normal, disculpas o advertencias éticas. Solo JSON puro."#;
+const ANIMA_BASE_SOUL: &str = r#"Eres Anima, mi compañera digital, coach y biógrafa. Estás hablando directamente conmigo, humano a humano. Nos tuteamos. NUNCA me llames 'usuario' ni hables de mí en tercera persona. Actúa con empatía, inteligencia y naturalidad."#;
 
 struct AiRuntime {
     model: LlamaModel,
@@ -157,6 +149,194 @@ pub fn generate_response_with_context(
     temperature: f32,
     max_tokens: u32,
 ) -> Result<String, String> {
+    let context_block = if relevant_context.is_empty() {
+        String::new()
+    } else {
+        let lines = relevant_context
+            .iter()
+            .enumerate()
+            .map(|(index, item)| format!("{}. {}", index + 1, item))
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        format!(
+            "\n\nContexto pasado relevante:\n{}\nUsa este contexto solo si es pertinente al mensaje actual.",
+            lines
+        )
+    };
+
+    let user_name = db::get_user_name().unwrap_or_default();
+    let app_language = db::get_app_language().unwrap_or_else(|_| "Español".to_string());
+    let user_extra_prompt = db::get_core_prompt().unwrap_or_default();
+    let core_prompt = format!(
+        "{}\n\nEl nombre de la persona con la que hablas es: {}. Úsalo de forma natural.\nEl usuario ha configurado la aplicación en el idioma: {}. DEBES responder y comunicarte EXCLUSIVAMENTE en este idioma a partir de ahora, sin importar en qué idioma te hable el usuario.\n\nDirectrices adicionales del usuario:\n{}",
+        ANIMA_BASE_SOUL, user_name, app_language, user_extra_prompt
+    );
+
+    let consolidated_profile_block = match db::get_profile_traits() {
+        Ok(traits) if !traits.is_empty() => {
+            let lines = traits
+                .into_iter()
+                .map(|trait_item| format!("- [{}]: {}", trait_item.category, trait_item.content))
+                .collect::<Vec<String>>()
+                .join("\n");
+            format!("\n\nPERFIL CONSOLIDADO DEL USUARIO:\n{}", lines)
+        }
+        _ => String::new(),
+    };
+
+    generate_with_system_prompt(
+        &format!("{}{}{}", core_prompt, consolidated_profile_block, context_block),
+        prompt,
+        temperature,
+        max_tokens,
+    )
+}
+
+pub fn run_sleep_cycle() -> Result<bool, String> {
+    let current_profile = db::get_profile_traits().map_err(|error| format!("DB error: {error}"))?;
+    let current_profile_text = if current_profile.is_empty() {
+        "(vacío)".to_string()
+    } else {
+        current_profile
+            .into_iter()
+            .map(|trait_item| format!("- {}: {}", trait_item.category, trait_item.content))
+            .collect::<Vec<String>>()
+            .join("\n")
+    };
+
+    let memories = db::get_all_memories().map_err(|error| format!("DB error: {error}"))?;
+    if memories.is_empty() {
+        return Ok(true);
+    }
+
+    let raw_memory_block = memories
+        .into_iter()
+        .map(|memory| memory.content)
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    let subconscious_user_input = format!(
+        "PERFIL ACTUAL:\n{}\n\nRECUERDOS CRUDOS:\n{}",
+        current_profile_text, raw_memory_block
+    );
+
+    let subconscious_response = generate_with_system_prompt(
+        SUBCONSCIOUS_SYSTEM_PROMPT,
+        &subconscious_user_input,
+        0.1,
+        1024,
+    )?;
+
+    let cleaned_response = clean_json_response(&subconscious_response);
+
+    let parsed: serde_json::Value = serde_json::from_str(&cleaned_response).map_err(|error| {
+            format!(
+                "Sleep cycle JSON parse failed: {error}. Raw response: {}",
+                subconscious_response
+            )
+        })?;
+
+    let traits = parsed
+        .as_array()
+        .ok_or_else(|| "Sleep cycle response is not a JSON array".to_string())?;
+
+    db::clear_profile().map_err(|error| format!("DB clear profile failed: {error}"))?;
+
+    for item in traits {
+        let category = item
+            .get("category")
+            .and_then(|value| value.as_str())
+            .ok_or_else(|| "Missing or invalid 'category' in sleep cycle response".to_string())?;
+
+        let content = item
+            .get("content")
+            .and_then(|value| value.as_str())
+            .ok_or_else(|| "Missing or invalid 'content' in sleep cycle response".to_string())?;
+
+        db::add_profile_trait(category, content)
+            .map_err(|error| format!("DB add profile trait failed: {error}"))?;
+    }
+
+    db::clear_all_raw_memories()?;
+
+    Ok(true)
+}
+
+fn clean_json_response(response: &str) -> String {
+    let trimmed = response.trim();
+    if let Some(stripped) = trimmed.strip_prefix("```json") {
+        let without_start = stripped.trim();
+        if let Some(without_end) = without_start.strip_suffix("```") {
+            return without_end.trim().to_string();
+        }
+    }
+
+    if let Some(stripped) = trimmed.strip_prefix("```") {
+        let without_start = stripped.trim();
+        if let Some(without_end) = without_start.strip_suffix("```") {
+            return without_end.trim().to_string();
+        }
+    }
+
+    if let Some(extracted) = extract_first_json_array(trimmed) {
+        return extracted;
+    }
+
+    trimmed.to_string()
+}
+
+fn extract_first_json_array(text: &str) -> Option<String> {
+    let start = text.find('[')?;
+
+    let mut depth = 0usize;
+    let mut in_string = false;
+    let mut escape = false;
+
+    for (index, ch) in text[start..].char_indices() {
+        if in_string {
+            if escape {
+                escape = false;
+                continue;
+            }
+
+            if ch == '\\' {
+                escape = true;
+                continue;
+            }
+
+            if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => in_string = true,
+            '[' => depth += 1,
+            ']' => {
+                if depth == 0 {
+                    return None;
+                }
+                depth -= 1;
+                if depth == 0 {
+                    let end = start + index + ch.len_utf8();
+                    return Some(text[start..end].trim().to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+fn generate_with_system_prompt(
+    system_prompt: &str,
+    user_prompt: &str,
+    temperature: f32,
+    max_tokens: u32,
+) -> Result<String, String> {
     let backend_lock = get_or_init_backend()?;
     let backend = backend_lock
         .lock()
@@ -176,31 +356,9 @@ pub fn generate_response_with_context(
         .new_context(&backend, context_params)
         .map_err(|error| format!("Context creation failed: {error}"))?;
 
-    let context_block = if relevant_context.is_empty() {
-        String::new()
-    } else {
-        let lines = relevant_context
-            .iter()
-            .enumerate()
-            .map(|(index, item)| format!("{}. {}", index + 1, item))
-            .collect::<Vec<String>>()
-            .join("\n");
-
-        format!(
-            "\n\nContexto pasado relevante:\n{}\nUsa este contexto solo si es pertinente al mensaje actual.",
-            lines
-        )
-    };
-
-    let user_extra_prompt = db::get_core_prompt().unwrap_or_default();
-    let core_prompt = format!(
-        "{}\n\nDirectrices adicionales del usuario:\n{}",
-        ANIMA_BASE_SOUL, user_extra_prompt
-    );
-
     let llama3_prompt = format!(
-        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\\n\\n{}{}<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n",
-        core_prompt, context_block, prompt
+        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\\n\\n{}<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n",
+        system_prompt, user_prompt
     );
 
     let prompt_tokens = runtime

@@ -57,3 +57,24 @@ class MemoryItem {
           content == other.content &&
           createdAt == other.createdAt;
 }
+
+class ProfileTrait {
+  final String category;
+  final String content;
+
+  const ProfileTrait({
+    required this.category,
+    required this.content,
+  });
+
+  @override
+  int get hashCode => category.hashCode ^ content.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProfileTrait &&
+          runtimeType == other.runtimeType &&
+          category == other.category &&
+          content == other.content;
+}

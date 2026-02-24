@@ -34,8 +34,34 @@ Future<String> getCorePrompt() =>
 Future<bool> setCorePrompt({required String prompt}) =>
     RustLib.instance.api.crateApiSimpleSetCorePrompt(prompt: prompt);
 
+Future<String> getUserName() =>
+    RustLib.instance.api.crateApiSimpleGetUserName();
+
+Future<bool> setUserName({required String name}) =>
+    RustLib.instance.api.crateApiSimpleSetUserName(name: name);
+
+Future<String> getAppLanguage() =>
+    RustLib.instance.api.crateApiSimpleGetAppLanguage();
+
+Future<bool> setAppLanguage({required String lang}) =>
+    RustLib.instance.api.crateApiSimpleSetAppLanguage(lang: lang);
+
+Future<bool> addProfileTrait(
+        {required String category, required String content}) =>
+    RustLib.instance.api
+        .crateApiSimpleAddProfileTrait(category: category, content: content);
+
 Future<bool> exportDatabase({required String destPath}) =>
     RustLib.instance.api.crateApiSimpleExportDatabase(destPath: destPath);
+
+Future<bool> runSleepCycle() =>
+    RustLib.instance.api.crateApiSimpleRunSleepCycle();
+
+Future<List<ProfileTrait>> getProfileTraits() =>
+    RustLib.instance.api.crateApiSimpleGetProfileTraits();
+
+Future<bool> clearProfile() =>
+    RustLib.instance.api.crateApiSimpleClearProfile();
 
 Future<void> initApp(
         {required String chatModelPath, required String embeddingModelPath}) =>

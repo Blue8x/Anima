@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'services/anima_service.dart';
+import 'services/translation_service.dart';
 import 'src/rust/frb_generated.dart';
 
 Future<void> main() async {
@@ -9,18 +11,42 @@ Future<void> main() async {
   await RustLib.init();
   final animaService = AnimaService();
   await animaService.initialize();
-  runApp(AnimaApp(animaService: animaService));
+  final userName = await animaService.getUserName();
+  final appLanguage = await animaService.getAppLanguage();
+  final initialScreen = userName.trim().isEmpty
+      ? const OnboardingScreen()
+      : const HomeScreen();
+  runApp(
+    AnimaApp(
+      animaService: animaService,
+      initialScreen: initialScreen,
+      initialLanguage: appLanguage,
+    ),
+  );
 }
 
 class AnimaApp extends StatelessWidget {
   final AnimaService animaService;
+  final Widget initialScreen;
+  final String initialLanguage;
 
-  const AnimaApp({super.key, required this.animaService});
+  const AnimaApp({
+    super.key,
+    required this.animaService,
+    required this.initialScreen,
+    required this.initialLanguage,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [Provider<AnimaService>.value(value: animaService)],
+      providers: [
+        Provider<AnimaService>.value(value: animaService),
+        ChangeNotifierProvider<TranslationService>(
+          create: (_) =>
+              TranslationService(initialLanguage: initialLanguage),
+        ),
+      ],
       child: MaterialApp(
         title: 'Anima',
         theme: ThemeData(
@@ -30,7 +56,7 @@ class AnimaApp extends StatelessWidget {
           ),
           useMaterial3: true,
         ),
-        home: const HomeScreen(),
+        home: initialScreen,
       ),
     );
   }

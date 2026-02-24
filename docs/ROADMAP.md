@@ -1,102 +1,83 @@
 # Project Roadmap - Anima
 
-## Phase 1: Core Infrastructure (Current)
+## Phase 1: Core Infrastructure (Completed)
 
 ### Backend
-- [x] Database schema design
-- [x] Core data models (Memory structures)
-- [x] SQLite with encryption setup
-- [x] Vector search implementation
-- [x] FRB v2 bridge exposure for core memory endpoints
-- [ ] LLM integration (llama.cpp)
-- [ ] Embedding generation service
+- [x] SQLite schema and initialization
+- [x] Core data models (messages, memories, profile, config)
+- [x] FRB v2 bridge setup
 
 ### Frontend
-- [x] Flutter project scaffolding
-- [x] Basic UI structure
-- [x] Service layer setup
-- [x] FRB v2 client integration
-- [x] Chat UI with message history
-- [x] Message input and submission
-- [x] Theme and styling
+- [x] Flutter scaffolding and app bootstrap
+- [x] Service layer and FRB integration
+- [x] Core chat UI and reusable widgets
 
-## Phase 2: Core Features (Q1 2026)
+## Phase 2: Local LLM Integration (Completed)
 
 ### Backend
-- [ ] Chat processing with RAG
-- [ ] Sleep cycle scheduler
-- [ ] Memory consolidation algorithm
-- [ ] Insight extraction from conversations
-- [ ] User identity profiling
+- [x] `llama.cpp` runtime initialization
+- [x] Local chat inference pipeline
+- [x] Runtime generation controls (`temperature`, `max_tokens`)
 
 ### Frontend
-- [x] Chat message display
-- [x] Chat history view
-- [ ] Settings screen
-- [ ] Profile view
+- [x] End-to-end chat connected to Rust inference
 
-## Phase 3: Advanced Memory (Q2 2026)
+## Phase 3: RAG + Semantic Memory (Completed)
 
 ### Backend
-- [ ] Multi-topic memory organization
-- [ ] Relationship mapping between insights
-- [ ] Emotion detection and tracking
-- [ ] Long-term pattern recognition
-- [ ] Personality drift analysis
+- [x] Embedding generation runtime (`all-MiniLM-L6-v2.gguf`)
+- [x] Embedding persistence in SQLite (`memories` BLOB)
+- [x] Cosine similarity top-k retrieval + threshold filtering
+- [x] Prompt context injection with relevant memories
 
 ### Frontend
-- [ ] Memory browser
-- [ ] Timeline view of conversations
-- [ ] Insight exploration
-- [ ] Identity visualization
-- [ ] Memory statistics dashboard
+- [x] Message flow with persisted long-term context
 
-## Phase 4: Personalization (Q2-Q3 2026)
+## Phase 4: UX + Control Surfaces (Completed)
 
 ### Backend
-- [ ] Adaptive response generation
-- [ ] User preference learning
-- [ ] Conversation style adaptation
-- [ ] Goal tracking and mentoring
-- [ ] Relationship dynamics modeling
+- [x] Config endpoints (core prompt, user name, export)
+- [x] Profile trait management endpoints
 
 ### Frontend
-- [ ] Goal setting interface
-- [ ] Progress tracking
-- [ ] Mentor-specific features
-- [ ] Customization settings
-- [ ] Data export options
+- [x] Memory Explorer
+- [x] Settings / Command Center
+- [x] Mirror and Digital Brain screens
+- [x] Onboarding entry flow
 
-## Phase 5: Platform Support (Q3 2026)
+## Phase 5: Cognitive Cycle + Internationalization (Core Completed)
 
-- [ ] iOS native build and optimization
-- [ ] Android native build and optimization
-- [ ] macOS app store release
-- [ ] Windows app store release
-- [ ] Background sync optimization
+### Backend
+- [x] Sleep cycle JSON consolidation
+- [x] Profile fusion (current profile + raw memories)
+- [x] Raw episodic memory purge after consolidation
+- [x] App language persistence (`app_language`)
+- [x] Chat system prompt language steering
 
-## Phase 6: Privacy & Security (Q3 2026)
+### Frontend
+- [x] Language selector in onboarding (Inglés, Español, Chino, Árabe, Ruso)
+- [x] Dynamic UI translation (`tr(key)` + Spanish fallback)
+- [x] i18n applied to drawer, onboarding, chat input, relative timestamps
 
-- [ ] Secure key management
-- [ ] Biometric unlock
-- [ ] Data encryption verification
-- [ ] Secure deletion procedures
-- [ ] Privacy compliance audit
+## Phase 6: Privacy & Security (Next)
 
-## Phase 7: Polish & Release (Q4 2026)
+- [ ] Secure key management hardening
+- [ ] Biometric unlock flow
+- [ ] Encryption verification and secure deletion tests
+- [ ] Threat-model and privacy compliance pass
 
-- [ ] Performance optimization
-- [ ] User testing and feedback
-- [ ] Bug fixes and stability
-- [ ] Documentation completion
-- [ ] Beta testing
-- [ ] Public release
+## Phase 7: Polish & Release
+
+- [ ] Performance optimization and latency tuning
+- [ ] End-to-end QA and stability fixes
+- [ ] Documentation final pass
+- [ ] Beta testing and public release readiness
 
 ## Research & Exploration
 
 ### AI/ML
 - [ ] Fine-tuning LLM on user patterns (optional)
-- [ ] Multi-language support
+- [x] Multi-language support (UI + LLM steering)
 - [ ] Voice input/output capability
 - [ ] Multimodal embeddings (text + image support)
 

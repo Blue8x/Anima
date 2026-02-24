@@ -46,7 +46,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<ProfileTrait> dco_decode_list_profile_trait(dynamic raw);
+
+  @protected
   MemoryItem dco_decode_memory_item(dynamic raw);
+
+  @protected
+  ProfileTrait dco_decode_profile_trait(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -82,7 +88,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<ProfileTrait> sse_decode_list_profile_trait(
+      SseDeserializer deserializer);
+
+  @protected
   MemoryItem sse_decode_memory_item(SseDeserializer deserializer);
+
+  @protected
+  ProfileTrait sse_decode_profile_trait(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -124,7 +137,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       Uint8List self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_profile_trait(
+      List<ProfileTrait> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_memory_item(MemoryItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_profile_trait(ProfileTrait self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

@@ -76,6 +76,23 @@ The **Anima** project is a comprehensive scaffolding for an AI-powered personal 
    - Retrieved memories are injected into Llama system context under "Contexto pasado relevante"
    - End-to-end flow active: embed -> store -> search -> prompt inject -> generate
 
+7. **Internationalization + Language Steering (Completed)**
+   - App language persisted in Rust config via `get_app_language` / `set_app_language` with default `Español`
+   - FRB API exposes language getters/setters for Flutter integration
+   - Chat system prompt injects a strict language directive based on saved app language
+   - Onboarding includes language selector (`Inglés`, `Español`, `Chino`, `Árabe`, `Ruso`)
+   - Drawer labels, onboarding texts, chat input hint, and relative timestamps are translated dynamically
+   - Translation system uses `tr(key)` with fallback to Spanish
+
+### 🧾 Changelog (Phase 5 + i18n)
+
+- Added cognitive sleep cycle consolidation into persistent profile traits.
+- Implemented profile fusion from current profile and raw episodic memory.
+- Added Digital Brain and memory control surfaces in Flutter.
+- Added onboarding language selector for five supported languages.
+- Added dynamic UI translation with Spanish fallback.
+- Enforced LLM reply language via persisted `app_language` in system prompt.
+
 ### 📋 Next Steps
 
 To continue development:
@@ -119,7 +136,7 @@ To continue development:
 - **Phase 2** (Q1 2026): Local LLM integration and chat inference ✓
 - **Phase 3** (Q2 2026): Advanced memory features (RAG + semantic memory) ✓
 - **Phase 4** (Q2-Q3 2026): UI enhancements (Explorador de Memorias, Sala de Mandos, Legado y Alma Fija) ✓
-- **Phase 5** (Q3 2026): Platform support
+- **Phase 5** (Q3 2026): Sleep cycle cognition + profile consolidation + Digital Brain + i18n foundation ✓
 - **Phase 6** (Q3 2026): Security hardening
 - **Phase 7** (Q4 2026): Release
 
@@ -144,6 +161,6 @@ All documentation includes:
 
 ---
 
-**Status**: Phase 4 completed, ready for Phase 5
-**Last Updated**: February 24, 2026
+**Status**: Phase 5 core completed (cognitive cycle + i18n), ready for Phase 6
+**Last Updated**: February 25, 2026
 

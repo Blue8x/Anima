@@ -2,10 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'mirror_screen.dart';
+import 'brain_screen.dart';
 import 'memory_browser_screen.dart';
 import 'settings_screen.dart';
 import '../services/anima_service.dart';
+import '../services/translation_service.dart';
 import '../src/rust/db.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
@@ -42,7 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load history: $e')));
+      ).showSnackBar(
+        SnackBar(content: Text('${tr(context, 'failedLoadHistory')}: $e')),
+      );
     }
   }
 
@@ -101,7 +104,9 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to process message: $e')));
+      ).showSnackBar(
+        SnackBar(content: Text('${tr(context, 'failedProcessMessage')}: $e')),
+      );
     }
 
     _scrollToBottom();
@@ -121,11 +126,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Anima'),
-            Text('Your personal AI companion', style: TextStyle(fontSize: 12)),
+            const Text('Anima'),
+            Text(
+              tr(context, 'personalCompanion'),
+              style: const TextStyle(fontSize: 12),
+            ),
           ],
         ),
         centerTitle: true,
@@ -140,14 +148,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.chat_bubble_outline),
-              title: const Text('Chat'),
+              title: Text(tr(context, 'chat')),
               onTap: () {
                 Navigator.of(context).pop();
               },
             ),
             ListTile(
               leading: const Icon(Icons.memory_outlined),
-              title: const Text('Explorador de Memoria'),
+              title: Text(tr(context, 'memoryExplorer')),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -159,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.tune),
-              title: const Text('Sala de Mandos y Legado'),
+              title: Text(tr(context, 'commandCenter')),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
@@ -171,12 +179,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.face_retouching_natural),
-              title: const Text('El Espejo (Perfil)'),
+              title: Text(tr(context, 'digitalBrain')),
               onTap: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const MirrorScreen(),
+                    builder: (_) => const BrainScreen(),
                   ),
                 );
               },
@@ -202,40 +210,38 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                       child: Text(
                         _isHistoryExpanded
-                            ? 'Ocultar historial anterior'
-                            : 'Desplegar historial anterior',
+                            ? tr(context, 'hidePreviousHistory')
+                            : tr(context, 'showPreviousHistory'),
                       ),
                     ),
                   ),
                 if (messagesToRender.isEmpty)
-                  const Center(
+                  Center(
                     child: Padding(
-                      padding: EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(32),
                       child: Column(
                         children: [
-                          Icon(Icons.psychology,
+                          const Icon(Icons.psychology,
                               size: 64, color: Colors.deepPurple),
-                          SizedBox(height: 16),
-                          Text(
+                          const SizedBox(height: 16),
+                          const Text(
                             'Anima',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
-                            'Your AI biographer, journal, and mentor',
+                            tr(context, 'aiBiographerTagline'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
                           ),
-                          SizedBox(height: 32),
+                          const SizedBox(height: 32),
                           Text(
-                            'Hello! I am Anima. I am here to listen, remember '
-                            'what matters, and support your journey. '
-                            'Share your day or whatever is on your mind.',
+                            tr(context, 'welcomeIntro'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 16,
                               fontStyle: FontStyle.italic,
                             ),

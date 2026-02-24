@@ -2,6 +2,7 @@ use crate::ai;
 use crate::db;
 pub use crate::db::ChatMessage;
 pub use crate::db::MemoryItem;
+pub use crate::db::ProfileTrait;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
@@ -137,8 +138,90 @@ pub fn set_core_prompt(prompt: String) -> bool {
 }
 
 #[flutter_rust_bridge::frb]
+pub fn get_user_name() -> String {
+    match db::get_user_name() {
+        Ok(name) => name,
+        Err(error) => {
+            eprintln!("Failed to load user name: {error}");
+            String::new()
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn set_user_name(name: String) -> bool {
+    match db::set_user_name(&name) {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("Failed to save user name: {error}");
+            false
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn get_app_language() -> String {
+    match db::get_app_language() {
+        Ok(lang) => lang,
+        Err(error) => {
+            eprintln!("Failed to load app language: {error}");
+            "Español".to_string()
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn set_app_language(lang: String) -> bool {
+    match db::set_app_language(&lang) {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("Failed to save app language: {error}");
+            false
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn add_profile_trait(category: String, content: String) -> bool {
+    match db::add_profile_trait(&category, &content) {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("Failed to add profile trait: {error}");
+            false
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
 pub fn export_database(dest_path: String) -> Result<bool, String> {
     db::export_database(&dest_path).map_err(|error| format!("Export failed: {error}"))
+}
+
+#[flutter_rust_bridge::frb]
+pub fn run_sleep_cycle() -> Result<bool, String> {
+    ai::run_sleep_cycle()
+}
+
+#[flutter_rust_bridge::frb]
+pub fn get_profile_traits() -> Vec<ProfileTrait> {
+    match db::get_profile_traits() {
+        Ok(traits) => traits,
+        Err(error) => {
+            eprintln!("Failed to fetch profile traits: {error}");
+            Vec::new()
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn clear_profile() -> bool {
+    match db::clear_profile() {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("Failed to clear profile: {error}");
+            false
+        }
+    }
 }
 
 #[flutter_rust_bridge::frb]

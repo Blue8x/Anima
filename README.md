@@ -11,6 +11,22 @@ Anima is your private biographer, journal, and mentor. It remembers what matters
 - Semantic memories are persisted in SQLite (`memories` table with embedding BLOB) and retrieved via cosine similarity top-k.
 - Generation parameters are wired from Flutter to Rust (`temperature`, `max_tokens`) for runtime control.
 
+## Language Support
+
+- User-selectable app language at onboarding: Inglés, Español, Chino, Árabe, Ruso.
+- UI text is translated dynamically (onboarding, drawer, chat input, relative chat timestamps).
+- Selected language is persisted locally in Rust config (`app_language`).
+- Chat system prompt enforces responses in the selected app language, regardless of input language.
+
+## Changelog (Phase 5 + i18n)
+
+- Added cognitive sleep cycle with JSON consolidation into persistent profile traits.
+- Implemented profile fusion (existing traits + raw episodic memories) during nightly processing.
+- Added Digital Brain and memory control surfaces in Flutter UI.
+- Added onboarding language selection with five supported languages.
+- Added dynamic UI translation (`tr(key)`) with Spanish fallback.
+- Enforced LLM response language via system prompt directive using saved `app_language`.
+
 ## Value Proposition
 
 Anima is a cross-platform app that works as a personal biographer, intelligent diary, and AI mentor. What sets it apart:
@@ -172,4 +188,4 @@ MIT License. See [LICENSE](LICENSE).
 - Issues: https://github.com/your-username/anima/issues
 - Discussions: https://github.com/your-username/anima/discussions
 
-Last updated: February 24, 2026 (Phase 3 completed)
+Last updated: February 25, 2026 (Phase 5 core + i18n completed)

@@ -121,6 +121,93 @@ class AnimaService {
     }
   }
 
+  Future<List<ProfileTrait>> getProfileTraits() async {
+    _logger.i('getProfileTraits start');
+    try {
+      final traits = await rust_simple.getProfileTraits();
+      _logger.i('getProfileTraits success count=${traits.length}');
+      return traits;
+    } catch (e, st) {
+      _logger.e('getProfileTraits failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<bool> clearProfile() async {
+    _logger.i('clearProfile start');
+    try {
+      final cleared = await rust_simple.clearProfile();
+      _logger.i('clearProfile result=$cleared');
+      return cleared;
+    } catch (e, st) {
+      _logger.e('clearProfile failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<String> getUserName() async {
+    _logger.i('getUserName start');
+    try {
+      final name = await rust_simple.getUserName();
+      _logger.i('getUserName success length=${name.length}');
+      return name;
+    } catch (e, st) {
+      _logger.e('getUserName failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<bool> setUserName(String name) async {
+    _logger.i('setUserName start length=${name.length}');
+    try {
+      final saved = await rust_simple.setUserName(name: name);
+      _logger.i('setUserName result=$saved');
+      return saved;
+    } catch (e, st) {
+      _logger.e('setUserName failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<String> getAppLanguage() async {
+    _logger.i('getAppLanguage start');
+    try {
+      final lang = await rust_simple.getAppLanguage();
+      _logger.i('getAppLanguage success value=$lang');
+      return lang;
+    } catch (e, st) {
+      _logger.e('getAppLanguage failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<bool> setAppLanguage(String lang) async {
+    _logger.i('setAppLanguage start value=$lang');
+    try {
+      final saved = await rust_simple.setAppLanguage(lang: lang);
+      _logger.i('setAppLanguage result=$saved');
+      return saved;
+    } catch (e, st) {
+      _logger.e('setAppLanguage failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<bool> addProfileTrait(String category, String content) async {
+    _logger.i('addProfileTrait start category=$category');
+    try {
+      final saved = await rust_simple.addProfileTrait(
+        category: category,
+        content: content,
+      );
+      _logger.i('addProfileTrait result=$saved');
+      return saved;
+    } catch (e, st) {
+      _logger.e('addProfileTrait failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
   /// Save a user message in the local database
   Future<String> saveUserMessage(String content) async {
     _logger.d('Saving user message: $content');
@@ -151,9 +238,16 @@ class AnimaService {
   }
 
   /// Trigger manual sleep cycle
-  Future<String> triggerSleepCycle() async {
+  Future<bool> triggerSleepCycle() async {
     _logger.i('Triggering manual sleep cycle');
-    return 'Sleep cycle initiated';
+    try {
+      final result = await rust_simple.runSleepCycle();
+      _logger.i('triggerSleepCycle result=$result');
+      return result;
+    } catch (e, st) {
+      _logger.e('triggerSleepCycle failed', error: e, stackTrace: st);
+      rethrow;
+    }
   }
 
   /// Get AI personality

@@ -1,6 +1,7 @@
 // Message input widget
 
 import 'package:flutter/material.dart';
+import '../services/translation_service.dart';
 
 class MessageInput extends StatefulWidget {
   final Function(String) onSend;
@@ -48,7 +49,7 @@ class _MessageInputState extends State<MessageInput> {
             child: TextField(
               controller: _controller,
               decoration: InputDecoration(
-                hintText: 'Type your message...',
+                hintText: tr(context, 'typeMessage'),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
