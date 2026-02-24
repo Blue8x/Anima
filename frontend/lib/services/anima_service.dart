@@ -2,11 +2,33 @@
 
 import 'package:logger/logger.dart';
 import '../api.dart' as rust_api;
+import '../src/rust/api/simple.dart' as rust_simple;
 
 class AnimaService {
   final Logger _logger = Logger();
 
   AnimaService();
+
+  Future<String> processMessage(String text) async {
+    final stopwatch = Stopwatch()..start();
+    _logger.i('processMessage start');
+    _logger.d('processMessage payload length=${text.length}');
+    try {
+      final response = await rust_simple.sendMessage(message: text);
+      stopwatch.stop();
+      _logger.i('processMessage success in ${stopwatch.elapsedMilliseconds}ms');
+      _logger.d('processMessage response length=${response.length}');
+      return response;
+    } catch (e, st) {
+      stopwatch.stop();
+      _logger.e(
+        'processMessage failed after ${stopwatch.elapsedMilliseconds}ms',
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
+    }
+  }
 
   /// Save a user message in the local database
   Future<String> saveUserMessage(String content) async {

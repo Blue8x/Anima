@@ -2,10 +2,21 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../api.dart' as rust_api;
 import '../services/anima_service.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
+
+class ChatMessage {
+  final String text;
+  final bool isUser;
+  final DateTime timestamp;
+
+  ChatMessage({
+    required this.text,
+    required this.isUser,
+    DateTime? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now();
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,14 +27,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
-  bool _isLoading = false;
-  List<rust_api.EpisodicMemoryDto> _messages = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRecentMemories();
-  }
+  final List<ChatMessage> _messages = [];
+  bool isTyping = false;
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -37,44 +42,35 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _loadRecentMemories() async {
-    try {
-      final animaService = context.read<AnimaService>();
-      final memories = await animaService.getRecentMemories(limit: 50);
-      setState(() {
-        _messages = memories.reversed.toList();
-      });
-      _scrollToBottom();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load memories: $e')));
-    }
-  }
-
   Future<void> _sendMessage(String content) async {
     if (content.trim().isEmpty) return;
 
     setState(() {
-      _isLoading = true;
+      _messages.add(ChatMessage(text: content, isUser: true));
+      isTyping = true;
     });
+    _scrollToBottom();
 
     try {
       final animaService = context.read<AnimaService>();
-      await animaService.saveUserMessage(content);
-      await _loadRecentMemories();
+      final response = await animaService.processMessage(content);
+
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatMessage(text: response, isUser: false));
+        isTyping = false;
+      });
     } catch (e) {
       if (!mounted) return;
+      setState(() {
+        isTyping = false;
+      });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-      _scrollToBottom();
+      ).showSnackBar(SnackBar(content: Text('Failed to process message: $e')));
     }
+
+    _scrollToBottom();
   }
 
   @override
@@ -142,14 +138,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 for (final memory in _messages)
                   ChatBubble(
-                    message: memory.content,
-                    isUser: memory.role == 'user',
-                    timestamp: DateTime.parse(memory.timestamp),
+                    message: memory.text,
+                    isUser: memory.isUser,
+                    timestamp: memory.timestamp,
+                  ),
+                if (isTyping)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
               ],
             ),
           ),
-          MessageInput(onSend: _sendMessage, isLoading: _isLoading),
+          MessageInput(onSend: _sendMessage, isLoading: isTyping),
         ],
       ),
     );
