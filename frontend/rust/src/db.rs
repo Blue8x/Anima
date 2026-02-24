@@ -1,6 +1,8 @@
 use rusqlite::{params, Connection, Result};
+use std::cmp::Ordering;
 
 const DB_PATH: &str = "anima_chat.db";
+const MIN_SIMILARITY_THRESHOLD: f32 = 0.35;
 
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
@@ -10,18 +12,122 @@ pub struct ChatMessage {
     pub timestamp: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct MemoryMatch {
+    pub message_id: i64,
+    pub role: String,
+    pub content: String,
+    pub similarity: f32,
+    pub timestamp: String,
+}
+
 pub fn init_db() -> Result<()> {
     let conn = Connection::open(DB_PATH)?;
     init_schema(&conn)
 }
 
-pub fn insert_message(role: &str, content: &str) -> Result<()> {
+pub fn insert_message(role: &str, content: &str) -> Result<i64> {
     let conn = open_connection()?;
     conn.execute(
         "INSERT INTO messages (role, content) VALUES (?1, ?2)",
         params![role, content],
     )?;
+    Ok(conn.last_insert_rowid())
+}
+
+pub fn insert_memory(message_id: i64, embedding: &[f32]) -> Result<()> {
+    let conn = open_connection()?;
+    let embedding_blob = f32_slice_to_blob(embedding);
+
+    conn.execute(
+        "INSERT OR REPLACE INTO memories (message_id, embedding) VALUES (?1, ?2)",
+        params![message_id, embedding_blob],
+    )?;
+
     Ok(())
+}
+
+pub fn find_top_similar_memories(
+    query_embedding: &[f32],
+    limit: usize,
+    exclude_message_id: Option<i64>,
+) -> Result<Vec<MemoryMatch>> {
+    if query_embedding.is_empty() || limit == 0 {
+        return Ok(Vec::new());
+    }
+
+    let conn = open_connection()?;
+    let mut statement = conn.prepare(
+        "SELECT m.message_id, msg.role, msg.content, msg.timestamp, m.embedding
+         FROM memories m
+         JOIN messages msg ON msg.id = m.message_id",
+    )?;
+
+    let rows = statement.query_map([], |row| {
+        let embedding_blob: Vec<u8> = row.get(4)?;
+        let embedding = blob_to_f32_vec(&embedding_blob);
+
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            embedding,
+        ))
+    })?;
+
+    let mut scored = Vec::<MemoryMatch>::new();
+    for row in rows {
+        let (message_id, role, content, timestamp, candidate_embedding) = row?;
+
+        if exclude_message_id.is_some_and(|excluded| excluded == message_id) {
+            continue;
+        }
+
+        let similarity = cosine_similarity(query_embedding, &candidate_embedding);
+        if similarity.is_finite() && similarity >= MIN_SIMILARITY_THRESHOLD {
+            scored.push(MemoryMatch {
+                message_id,
+                role,
+                content,
+                similarity,
+                timestamp,
+            });
+        }
+    }
+
+    scored.sort_by(|a, b| {
+        b.similarity
+            .partial_cmp(&a.similarity)
+            .unwrap_or(Ordering::Equal)
+    });
+    scored.truncate(limit);
+    Ok(scored)
+}
+
+pub fn cosine_similarity(query: &[f32], candidate: &[f32]) -> f32 {
+    let dimensions = query.len().min(candidate.len());
+    if dimensions == 0 {
+        return 0.0;
+    }
+
+    let mut dot_product = 0.0_f32;
+    let mut query_norm_sq = 0.0_f32;
+    let mut candidate_norm_sq = 0.0_f32;
+
+    for index in 0..dimensions {
+        let q = query[index];
+        let c = candidate[index];
+        dot_product += q * c;
+        query_norm_sq += q * q;
+        candidate_norm_sq += c * c;
+    }
+
+    if query_norm_sq <= f32::EPSILON || candidate_norm_sq <= f32::EPSILON {
+        return 0.0;
+    }
+
+    dot_product / (query_norm_sq.sqrt() * candidate_norm_sq.sqrt())
 }
 
 pub fn get_all_messages() -> Result<Vec<ChatMessage>> {
@@ -59,5 +165,34 @@ fn init_schema(conn: &Connection) -> Result<()> {
         [],
     )?;
 
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS memories (
+            message_id INTEGER PRIMARY KEY,
+            embedding BLOB NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)",
+        [],
+    )?;
+
     Ok(())
+}
+
+fn f32_slice_to_blob(vector: &[f32]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(vector.len() * std::mem::size_of::<f32>());
+    for value in vector {
+        bytes.extend_from_slice(&value.to_le_bytes());
+    }
+    bytes
+}
+
+fn blob_to_f32_vec(blob: &[u8]) -> Vec<f32> {
+    blob.chunks_exact(4)
+        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .collect()
 }

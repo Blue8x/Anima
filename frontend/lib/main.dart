@@ -7,16 +7,20 @@ import 'src/rust/frb_generated.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
-  runApp(const AnimaApp());
+  final animaService = AnimaService();
+  await animaService.initialize();
+  runApp(AnimaApp(animaService: animaService));
 }
 
 class AnimaApp extends StatelessWidget {
-  const AnimaApp({super.key});
+  final AnimaService animaService;
+
+  const AnimaApp({super.key, required this.animaService});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [Provider<AnimaService>(create: (_) => AnimaService())],
+      providers: [Provider<AnimaService>.value(value: animaService)],
       child: MaterialApp(
         title: 'Anima',
         theme: ThemeData(

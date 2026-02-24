@@ -1,4 +1,4 @@
-use llama_cpp_2::context::params::LlamaContextParams;
+use llama_cpp_2::context::params::{LlamaContextParams, LlamaPoolingType};
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::params::LlamaModelParams;
@@ -12,14 +12,38 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const DEFAULT_N_CTX: u32 = 2048;
 
 struct AiRuntime {
-    backend: LlamaBackend,
     model: LlamaModel,
 }
 
-static AI_RUNTIME: OnceLock<Mutex<AiRuntime>> = OnceLock::new();
+static LLAMA_BACKEND: OnceLock<Mutex<LlamaBackend>> = OnceLock::new();
+static CHAT_RUNTIME: OnceLock<Mutex<AiRuntime>> = OnceLock::new();
+static EMBEDDING_RUNTIME: OnceLock<Mutex<AiRuntime>> = OnceLock::new();
 
-pub fn init_ai_model(model_path: &str) -> Result<(), String> {
-    if AI_RUNTIME.get().is_some() {
+pub fn init_ai_models(chat_model_path: &str, embedding_model_path: &str) -> Result<(), String> {
+    let backend_lock = get_or_init_backend()?;
+    let backend = backend_lock
+        .lock()
+        .map_err(|_| "Llama backend mutex is poisoned".to_string())?;
+
+    init_chat_model(&backend, chat_model_path)?;
+    init_embedding_model(&backend, embedding_model_path)?;
+    Ok(())
+}
+
+fn get_or_init_backend() -> Result<&'static Mutex<LlamaBackend>, String> {
+    if LLAMA_BACKEND.get().is_none() {
+        let backend =
+            LlamaBackend::init().map_err(|error| format!("Backend init failed: {error}"))?;
+        let _ = LLAMA_BACKEND.set(Mutex::new(backend));
+    }
+
+    LLAMA_BACKEND
+        .get()
+        .ok_or_else(|| "Llama backend is not initialized".to_string())
+}
+
+fn init_chat_model(backend: &LlamaBackend, model_path: &str) -> Result<(), String> {
+    if CHAT_RUNTIME.get().is_some() {
         return Ok(());
     }
 
@@ -28,17 +52,106 @@ pub fn init_ai_model(model_path: &str) -> Result<(), String> {
         return Err(format!("Model file not found: {}", model_file.display()));
     }
 
-    let backend = LlamaBackend::init().map_err(|error| format!("Backend init failed: {error}"))?;
-    let model = LlamaModel::load_from_file(&backend, model_file, &LlamaModelParams::default())
+    let model = LlamaModel::load_from_file(backend, model_file, &LlamaModelParams::default())
         .map_err(|error| format!("Model load failed: {error}"))?;
 
-    AI_RUNTIME
-        .set(Mutex::new(AiRuntime { backend, model }))
+    CHAT_RUNTIME
+        .set(Mutex::new(AiRuntime { model }))
         .map_err(|_| "AI runtime was already initialized".to_string())
 }
 
+fn init_embedding_model(backend: &LlamaBackend, model_path: &str) -> Result<(), String> {
+    if EMBEDDING_RUNTIME.get().is_some() {
+        return Ok(());
+    }
+
+    let model_file = Path::new(model_path);
+    if !model_file.exists() {
+        return Err(format!("Embedding model file not found: {}", model_file.display()));
+    }
+
+    let model = LlamaModel::load_from_file(backend, model_file, &LlamaModelParams::default())
+        .map_err(|error| format!("Embedding model load failed: {error}"))?;
+
+    EMBEDDING_RUNTIME
+        .set(Mutex::new(AiRuntime { model }))
+        .map_err(|_| "Embedding runtime was already initialized".to_string())
+}
+
+pub fn generate_embedding(text: &str) -> Result<Vec<f32>, String> {
+    let backend_lock = get_or_init_backend()?;
+    let backend = backend_lock
+        .lock()
+        .map_err(|_| "Llama backend mutex is poisoned".to_string())?;
+
+    let runtime_lock = EMBEDDING_RUNTIME
+        .get()
+        .ok_or_else(|| "Embedding runtime is not initialized".to_string())?;
+
+    let runtime = runtime_lock
+        .lock()
+        .map_err(|_| "Embedding runtime mutex is poisoned".to_string())?;
+
+    let context_params = LlamaContextParams::default()
+        .with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX))
+        .with_embeddings(true)
+        .with_pooling_type(LlamaPoolingType::Mean);
+
+    let mut context = runtime
+        .model
+        .new_context(&backend, context_params)
+        .map_err(|error| format!("Embedding context creation failed: {error}"))?;
+
+    let tokens = runtime
+        .model
+        .str_to_token(text, AddBos::Never)
+        .map_err(|error| format!("Embedding tokenization failed: {error}"))?;
+
+    if tokens.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut batch = LlamaBatch::get_one(&tokens)
+        .map_err(|error| format!("Embedding batch init failed: {error}"))?;
+
+    match context.encode(&mut batch) {
+        Ok(()) => {}
+        Err(_) => {
+            context
+                .decode(&mut batch)
+                .map_err(|error| format!("Embedding inference failed: {error}"))?;
+        }
+    }
+
+    match context.embeddings_seq_ith(0) {
+        Ok(vector) => Ok(vector.to_vec()),
+        Err(_) => {
+            let last_token = i32::try_from(tokens.len().saturating_sub(1))
+                .map_err(|_| "Embedding token index overflow".to_string())?;
+            let fallback = context
+                .embeddings_ith(last_token)
+                .map_err(|error| format!("Embedding extraction failed: {error}"))?;
+            Ok(fallback.to_vec())
+        }
+    }
+}
+
 pub fn generate_response(prompt: &str, temperature: f32, max_tokens: u32) -> Result<String, String> {
-    let runtime_lock = AI_RUNTIME
+    generate_response_with_context(prompt, &[], temperature, max_tokens)
+}
+
+pub fn generate_response_with_context(
+    prompt: &str,
+    relevant_context: &[String],
+    temperature: f32,
+    max_tokens: u32,
+) -> Result<String, String> {
+    let backend_lock = get_or_init_backend()?;
+    let backend = backend_lock
+        .lock()
+        .map_err(|_| "Llama backend mutex is poisoned".to_string())?;
+
+    let runtime_lock = CHAT_RUNTIME
         .get()
         .ok_or_else(|| "AI runtime is not initialized".to_string())?;
 
@@ -49,12 +162,28 @@ pub fn generate_response(prompt: &str, temperature: f32, max_tokens: u32) -> Res
     let context_params = LlamaContextParams::default().with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX));
     let mut context = runtime
         .model
-        .new_context(&runtime.backend, context_params)
+        .new_context(&backend, context_params)
         .map_err(|error| format!("Context creation failed: {error}"))?;
 
+    let context_block = if relevant_context.is_empty() {
+        String::new()
+    } else {
+        let lines = relevant_context
+            .iter()
+            .enumerate()
+            .map(|(index, item)| format!("{}. {}", index + 1, item))
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        format!(
+            "\n\nContexto pasado relevante:\n{}\nUsa este contexto solo si es pertinente al mensaje actual.",
+            lines
+        )
+    };
+
     let llama3_prompt = format!(
-        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\\n\\nEres Anima, una IA amigable, útil y concisa. Responde siempre en el mismo idioma en el que escribe el usuario. Si el usuario mezcla idiomas, prioriza el idioma dominante del ÚLTIMO mensaje del usuario. No traduzcas ni cambies de idioma a menos que el usuario lo pida explícitamente.<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n",
-        prompt
+        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\\n\\nEres Anima, un asistente personal inteligente y amigable. Tienes memoria a largo plazo basada en el contexto de conversaciones pasadas que se te proporciona. DEBES usar esta información como si fueran tus propios recuerdos reales sobre el usuario. NUNCA digas que eres una IA, que no tienes memoria previa, o que no puedes recordar preferencias. Responde de forma natural, directa y empática a lo que se te pregunta. REGLA DE IDIOMA: Responde siempre en el mismo idioma en el que te habla el usuario. Si el usuario mezcla idiomas en su mensaje, debes responder en el último idioma que haya escrito.{}<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n",
+        context_block, prompt
     );
 
     let prompt_tokens = runtime

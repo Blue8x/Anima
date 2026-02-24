@@ -7,8 +7,21 @@ import '../src/rust/api/simple.dart' as rust_simple;
 
 class AnimaService {
   final Logger _logger = Logger();
+  bool _initialized = false;
 
   AnimaService();
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+
+    _logger.i('Initializing Rust AI models');
+    await rust_simple.initApp(
+      chatModelPath: 'models/anima_v1.gguf',
+      embeddingModelPath: 'models/all-MiniLM-L6-v2.gguf',
+    );
+    _initialized = true;
+    _logger.i('Rust AI models initialized');
+  }
 
   Future<String> processMessage(String text) async {
     final stopwatch = Stopwatch()..start();

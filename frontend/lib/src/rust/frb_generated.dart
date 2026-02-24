@@ -59,9 +59,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
       RustLibWire.fromExternalLibrary;
 
   @override
-  Future<void> executeRustInitializers() async {
-    await api.crateApiSimpleInitApp();
-  }
+  Future<void> executeRustInitializers() async {}
 
   @override
   ExternalLibraryLoaderConfig get defaultExternalLibraryLoaderConfig =>
@@ -86,7 +84,8 @@ abstract class RustLibApi extends BaseApi {
 
   String crateApiSimpleGreet({required String name});
 
-  Future<void> crateApiSimpleInitApp();
+  Future<void> crateApiSimpleInitApp(
+      {required String chatModelPath, required String embeddingModelPath});
 
   Future<String> crateApiSimpleSendMessage(
       {required String message,
@@ -150,10 +149,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSimpleInitApp() {
+  Future<void> crateApiSimpleInitApp(
+      {required String chatModelPath, required String embeddingModelPath}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(chatModelPath, serializer);
+        sse_encode_String(embeddingModelPath, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 3, port: port_);
       },
@@ -162,14 +164,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         decodeErrorData: null,
       ),
       constMeta: kCrateApiSimpleInitAppConstMeta,
-      argValues: [],
+      argValues: [chatModelPath, embeddingModelPath],
       apiImpl: this,
     ));
   }
 
   TaskConstMeta get kCrateApiSimpleInitAppConstMeta => const TaskConstMeta(
         debugName: "init_app",
-        argNames: [],
+        argNames: ["chatModelPath", "embeddingModelPath"],
       );
 
   @override

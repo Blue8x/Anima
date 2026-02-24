@@ -7,8 +7,6 @@ import '../db.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `resolve_model_path`
-
 String greet({required String name}) =>
     RustLib.instance.api.crateApiSimpleGreet(name: name);
 
@@ -21,3 +19,8 @@ Future<String> sendMessage(
 
 Future<List<ChatMessage>> getChatHistory() =>
     RustLib.instance.api.crateApiSimpleGetChatHistory();
+
+Future<void> initApp(
+        {required String chatModelPath, required String embeddingModelPath}) =>
+    RustLib.instance.api.crateApiSimpleInitApp(
+        chatModelPath: chatModelPath, embeddingModelPath: embeddingModelPath);

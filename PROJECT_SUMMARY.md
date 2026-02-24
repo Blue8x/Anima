@@ -68,6 +68,14 @@ The **Anima** project is a comprehensive scaffolding for an AI-powered personal 
    - Runtime generation controls exposed (`temperature`, `max_tokens`)
    - Prompt template configured for language consistency with user input
 
+6. **RAG + Semantic Long-Term Memory (Phase 3 Completed)**
+   - Dedicated embedding model runtime added (`all-MiniLM-L6-v2.gguf`)
+   - SQLite `memories` table stores per-message embeddings as BLOB (`Vec<f32>` bytes)
+   - Pure Rust cosine similarity retrieval returns top-k relevant memories
+   - Similarity threshold filtering enabled (`>= 0.35`) to ignore irrelevant context
+   - Retrieved memories are injected into Llama system context under "Contexto pasado relevante"
+   - End-to-end flow active: embed -> store -> search -> prompt inject -> generate
+
 ### 📋 Next Steps
 
 To continue development:
@@ -109,7 +117,7 @@ To continue development:
 
 - **Phase 1** (Current): Core infrastructure ✓
 - **Phase 2** (Q1 2026): Local LLM integration and chat inference ✓
-- **Phase 3** (Q2 2026): Advanced memory features
+- **Phase 3** (Q2 2026): Advanced memory features (RAG + semantic memory) ✓
 - **Phase 4** (Q2-Q3 2026): Personalization
 - **Phase 5** (Q3 2026): Platform support
 - **Phase 6** (Q3 2026): Security hardening
@@ -136,6 +144,6 @@ All documentation includes:
 
 ---
 
-**Status**: Phase 2 completed, ready for Phase 3 enhancements
+**Status**: Phase 3 completed, ready for Phase 4 (personalization)
 **Last Updated**: February 24, 2026
 

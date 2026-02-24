@@ -5,8 +5,11 @@ Anima is your private biographer, journal, and mentor. It remembers what matters
 ## Current Milestone
 
 - Phase 2 (Local LLM integration with `llama.cpp`) is completed.
+- Phase 3 (RAG + long-term semantic memory with vector search) is completed.
 - Real-time local inference is running in Rust and connected end-to-end to the Flutter chat UI.
-- Generation parameters are already wired from Flutter to Rust (`temperature`, `max_tokens`) for runtime control.
+- Dual-model pipeline is active: chat model + embedding model (`all-MiniLM-L6-v2.gguf`).
+- Semantic memories are persisted in SQLite (`memories` table with embedding BLOB) and retrieved via cosine similarity top-k.
+- Generation parameters are wired from Flutter to Rust (`temperature`, `max_tokens`) for runtime control.
 
 ## Value Proposition
 
@@ -169,4 +172,4 @@ MIT License. See [LICENSE](LICENSE).
 - Issues: https://github.com/your-username/anima/issues
 - Discussions: https://github.com/your-username/anima/discussions
 
-Last updated: February 24, 2026
+Last updated: February 24, 2026 (Phase 3 completed)
