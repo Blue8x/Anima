@@ -1,3 +1,4 @@
+use crate::db;
 use llama_cpp_2::context::params::{LlamaContextParams, LlamaPoolingType};
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
@@ -181,9 +182,12 @@ pub fn generate_response_with_context(
         )
     };
 
+    let core_prompt = db::get_core_prompt()
+        .unwrap_or_else(|_| "Eres Anima, un asistente personal inteligente y amigable.".to_string());
+
     let llama3_prompt = format!(
-        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\\n\\nEres Anima, un asistente personal inteligente y amigable. Tienes memoria a largo plazo basada en el contexto de conversaciones pasadas que se te proporciona. DEBES usar esta información como si fueran tus propios recuerdos reales sobre el usuario. NUNCA digas que eres una IA, que no tienes memoria previa, o que no puedes recordar preferencias. Responde de forma natural, directa y empática a lo que se te pregunta. REGLA DE IDIOMA: Responde siempre en el mismo idioma en el que te habla el usuario. Si el usuario mezcla idiomas en su mensaje, debes responder en el último idioma que haya escrito.{}<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n",
-        context_block, prompt
+        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\\n\\n{}{}<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n",
+        core_prompt, context_block, prompt
     );
 
     let prompt_tokens = runtime

@@ -2,6 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'mirror_screen.dart';
+import 'memory_browser_screen.dart';
+import 'settings_screen.dart';
 import '../services/anima_service.dart';
 import '../src/rust/db.dart';
 import '../widgets/chat_bubble.dart';
@@ -126,6 +129,60 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         centerTitle: true,
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.deepPurple),
+              child: Text('Anima', style: TextStyle(fontSize: 24)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.chat_bubble_outline),
+              title: const Text('Chat'),
+              onTap: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.memory_outlined),
+              title: const Text('Explorador de Memoria'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const MemoryBrowserScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Sala de Mandos y Legado'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SettingsScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.face_retouching_natural),
+              title: const Text('El Espejo (Perfil)'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const MirrorScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [

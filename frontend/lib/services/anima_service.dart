@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import '../api.dart' as rust_api;
 import '../src/rust/db.dart';
 import '../src/rust/api/simple.dart' as rust_simple;
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 class AnimaService {
   final Logger _logger = Logger();
@@ -56,6 +57,66 @@ class AnimaService {
       return history;
     } catch (e, st) {
       _logger.e('loadHistory failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<List<MemoryItem>> getAllMemories() async {
+    _logger.i('getAllMemories start');
+    try {
+      final memories = await rust_simple.getAllMemories();
+      _logger.i('getAllMemories success count=${memories.length}');
+      return memories;
+    } catch (e, st) {
+      _logger.e('getAllMemories failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<bool> deleteMemory(PlatformInt64 memoryId) async {
+    _logger.i('deleteMemory start id=$memoryId');
+    try {
+      final deleted = await rust_simple.deleteMemory(id: memoryId);
+      _logger.i('deleteMemory result id=$memoryId deleted=$deleted');
+      return deleted;
+    } catch (e, st) {
+      _logger.e('deleteMemory failed id=$memoryId', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<String> getCorePrompt() async {
+    _logger.i('getCorePrompt start');
+    try {
+      final prompt = await rust_simple.getCorePrompt();
+      _logger.i('getCorePrompt success length=${prompt.length}');
+      return prompt;
+    } catch (e, st) {
+      _logger.e('getCorePrompt failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<bool> setCorePrompt(String prompt) async {
+    _logger.i('setCorePrompt start length=${prompt.length}');
+    try {
+      final saved = await rust_simple.setCorePrompt(prompt: prompt);
+      _logger.i('setCorePrompt result saved=$saved');
+      return saved;
+    } catch (e, st) {
+      _logger.e('setCorePrompt failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<bool> exportDatabase(String destinationPath) async {
+    _logger.i('exportDatabase start path=$destinationPath');
+    try {
+      final exported = await rust_simple.exportDatabase(destPath: destinationPath);
+      _logger.i('exportDatabase result exported=$exported');
+      return exported;
+    } catch (e, st) {
+      _logger.e('exportDatabase failed', error: e, stackTrace: st);
       rethrow;
     }
   }

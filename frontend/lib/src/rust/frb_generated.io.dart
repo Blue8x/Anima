@@ -23,6 +23,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  bool dco_decode_bool(dynamic raw);
+
+  @protected
   ChatMessage dco_decode_chat_message(dynamic raw);
 
   @protected
@@ -35,7 +38,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ChatMessage> dco_decode_list_chat_message(dynamic raw);
 
   @protected
+  List<MemoryItem> dco_decode_list_memory_item(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  MemoryItem dco_decode_memory_item(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -50,6 +59,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
   ChatMessage sse_decode_chat_message(SseDeserializer deserializer);
 
   @protected
@@ -62,7 +74,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ChatMessage> sse_decode_list_chat_message(SseDeserializer deserializer);
 
   @protected
+  List<MemoryItem> sse_decode_list_memory_item(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  MemoryItem sse_decode_memory_item(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -77,10 +95,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
+  void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
-  void sse_encode_String(String self, SseSerializer serializer);
+  void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_chat_message(ChatMessage self, SseSerializer serializer);
@@ -96,8 +114,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       List<ChatMessage> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_memory_item(
+      List<MemoryItem> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
       Uint8List self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_memory_item(MemoryItem self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
@@ -110,9 +135,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class

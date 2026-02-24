@@ -33,3 +33,27 @@ class ChatMessage {
           content == other.content &&
           timestamp == other.timestamp;
 }
+
+class MemoryItem {
+  final PlatformInt64 id;
+  final String content;
+  final String createdAt;
+
+  const MemoryItem({
+    required this.id,
+    required this.content,
+    required this.createdAt,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ content.hashCode ^ createdAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MemoryItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          content == other.content &&
+          createdAt == other.createdAt;
+}

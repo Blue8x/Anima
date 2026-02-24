@@ -1,6 +1,7 @@
 use crate::ai;
 use crate::db;
 pub use crate::db::ChatMessage;
+pub use crate::db::MemoryItem;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
@@ -89,6 +90,55 @@ pub fn get_chat_history() -> Vec<ChatMessage> {
             Vec::new()
         }
     }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn get_all_memories() -> Vec<MemoryItem> {
+    match db::get_all_memories() {
+        Ok(memories) => memories,
+        Err(error) => {
+            eprintln!("Failed to fetch memories: {error}");
+            Vec::new()
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn delete_memory(id: i64) -> bool {
+    match db::delete_memory(id) {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("Failed to delete memory {id}: {error}");
+            false
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn get_core_prompt() -> String {
+    match db::get_core_prompt() {
+        Ok(prompt) => prompt,
+        Err(error) => {
+            eprintln!("Failed to load core prompt: {error}");
+            String::new()
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn set_core_prompt(prompt: String) -> bool {
+    match db::set_core_prompt(&prompt) {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("Failed to save core prompt: {error}");
+            false
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn export_database(dest_path: String) -> Result<bool, String> {
+    db::export_database(&dest_path).map_err(|error| format!("Export failed: {error}"))
 }
 
 #[flutter_rust_bridge::frb]

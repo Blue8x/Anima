@@ -7,6 +7,8 @@ import '../db.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `current_init_error`, `resolve_model_path`, `set_init_error`
+
 String greet({required String name}) =>
     RustLib.instance.api.crateApiSimpleGreet(name: name);
 
@@ -19,6 +21,21 @@ Future<String> sendMessage(
 
 Future<List<ChatMessage>> getChatHistory() =>
     RustLib.instance.api.crateApiSimpleGetChatHistory();
+
+Future<List<MemoryItem>> getAllMemories() =>
+    RustLib.instance.api.crateApiSimpleGetAllMemories();
+
+Future<bool> deleteMemory({required PlatformInt64 id}) =>
+    RustLib.instance.api.crateApiSimpleDeleteMemory(id: id);
+
+Future<String> getCorePrompt() =>
+    RustLib.instance.api.crateApiSimpleGetCorePrompt();
+
+Future<bool> setCorePrompt({required String prompt}) =>
+    RustLib.instance.api.crateApiSimpleSetCorePrompt(prompt: prompt);
+
+Future<bool> exportDatabase({required String destPath}) =>
+    RustLib.instance.api.crateApiSimpleExportDatabase(destPath: destPath);
 
 Future<void> initApp(
         {required String chatModelPath, required String embeddingModelPath}) =>
