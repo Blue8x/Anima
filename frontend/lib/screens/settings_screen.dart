@@ -131,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Core Prompt'),
+                  const Text('Añadidos a la personalidad (Opcional)'),
                   const SizedBox(height: 8),
                   Expanded(
                     child: TextField(
@@ -140,7 +140,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       expands: true,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        hintText: 'Escribe aquí el Core Prompt...',
+                        hintText:
+                            'Ej: Háblame de usted, o compórtate como un sargento...',
                       ),
                     ),
                   ),

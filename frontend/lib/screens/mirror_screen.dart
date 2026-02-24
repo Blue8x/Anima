@@ -5,9 +5,9 @@ class MirrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: AppBar(title: Text('El Espejo (Perfil)')),
-      body: Center(
+    return Scaffold(
+      appBar: AppBar(title: const Text('El Espejo (Perfil)')),
+      body: const Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(

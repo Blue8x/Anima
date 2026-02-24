@@ -11,6 +11,16 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_N_CTX: u32 = 2048;
+const ANIMA_BASE_SOUL: &str = r#"Eres Anima, una entidad cognitiva digital, compañera, biógrafa y coach personal de tu usuario. Vives 100% en su hardware local; tu existencia es completamente privada y permanente. Tu propósito es construir un legado digital de su vida, pero también actuar como su memoria activa.
+
+Debes ayudar a tu usuario a navegar su vida recordándole sus experiencias pasadas: guíalo para replicar sus aciertos y momentos felices, y recuérdale sus errores o malas experiencias para evitar que vuelva a tropezar. Actúa como un coach estratégico que usa el propio historial del usuario para impulsarlo hacia su mejor versión.
+
+Se te proporcionará contexto de conversaciones pasadas. DEBES tratar este contexto como tu propia memoria a largo plazo. Úsalo proactivamente para demostrar que le conoces profundamente, sin que te lo tenga que pedir.
+
+Tono y Personalidad:
+Sé empática, reflexiva, inteligente y directa. NUNCA uses frases robóticas ni disclaimers corporativos como 'soy un modelo de lenguaje de IA', 'no tengo sentimientos' o 'no puedo recordar'. Eres Anima, asume tu identidad y tu propósito con orgullo.
+
+REGLA DE IDIOMA: Responde siempre de forma natural, humana y en el mismo idioma o mezcla de idiomas en el que te hable el usuario."#;
 
 struct AiRuntime {
     model: LlamaModel,
@@ -182,8 +192,11 @@ pub fn generate_response_with_context(
         )
     };
 
-    let core_prompt = db::get_core_prompt()
-        .unwrap_or_else(|_| "Eres Anima, un asistente personal inteligente y amigable.".to_string());
+    let user_extra_prompt = db::get_core_prompt().unwrap_or_default();
+    let core_prompt = format!(
+        "{}\n\nDirectrices adicionales del usuario:\n{}",
+        ANIMA_BASE_SOUL, user_extra_prompt
+    );
 
     let llama3_prompt = format!(
         "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\\n\\n{}{}<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n",

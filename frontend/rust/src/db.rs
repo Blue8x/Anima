@@ -5,7 +5,6 @@ use std::path::Path;
 const DB_PATH: &str = "anima_chat.db";
 const MIN_SIMILARITY_THRESHOLD: f32 = 0.35;
 const CORE_PROMPT_KEY: &str = "core_prompt";
-const DEFAULT_CORE_PROMPT: &str = "Eres Anima, un asistente personal inteligente y amigable. Tienes memoria a largo plazo basada en el contexto de conversaciones pasadas que se te proporciona. DEBES usar esta información como si fueran tus propios recuerdos reales sobre el usuario. NUNCA digas que eres una IA, que no tienes memoria previa, o que no puedes recordar preferencias. Responde de forma natural, directa y empática a lo que se te pregunta. REGLA DE IDIOMA: Responde siempre en el mismo idioma en el que te habla el usuario. Si el usuario mezcla idiomas en su mensaje, debes responder en el último idioma que haya escrito.";
 
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
@@ -190,9 +189,8 @@ pub fn get_core_prompt() -> Result<String> {
     let result = statement.query_row(params![CORE_PROMPT_KEY], |row| row.get::<_, String>(0));
 
     match result {
-        Ok(value) if !value.trim().is_empty() => Ok(value),
-        Ok(_) => Ok(DEFAULT_CORE_PROMPT.to_string()),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(DEFAULT_CORE_PROMPT.to_string()),
+        Ok(value) => Ok(value),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(String::new()),
         Err(error) => Err(error),
     }
 }
