@@ -1,0 +1,71 @@
+name: anima
+description: "Anima - AI Biographer and Local Mentor. A personal AI companion with long-term memory and total privacy."
+
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  provider: ^6.0.0
+  
+  # Serialization
+  json_serializable: ^6.0.0
+  json_annotation: ^4.8.0
+  
+  # Database
+  sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.0
+  
+  # HTTP/IPC Communication
+  http: ^1.0.0
+  socket_io_client: ^2.0.0
+
+  # Rust Bridge
+  flutter_rust_bridge: 2.11.1
+  
+  # Embeddings & Vector Operations
+  # (invented package)onnx_dart: ^0.0.1  # For running embeddings locally
+  
+  # UI
+  flutter_markdown: ^0.6.0
+  intl: ^0.19.0
+  uuid: ^4.0.0
+  
+  # Storage & File operations
+  path_provider: ^2.1.0
+  file: ^6.1.0
+  
+  # Date/Time
+  timeago: ^3.4.0
+  
+  # Logging
+  logger: ^2.0.0
+  
+  # Native Channels (for platform-specific integration)
+  flutter_native_splash: ^2.3.0
+  rust_lib_anima:
+    path: rust_builder
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  build_runner: ^2.0.0
+  flutter_lints: ^3.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/models/  # For local LLM models (GGUF files)
+    - assets/prompts/  # For system prompts
+

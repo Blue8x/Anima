@@ -1,0 +1,86 @@
+# Rust
+/target
+/backend/target/
+**/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+.gradle/
+*.iml
+.idea/
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+pubspec.lock
+
+# IDE
+.vscode/
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Environment
+.env
+.env.local
+*.key
+*.pem
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+anima.db*
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Build artifacts
+dist/
+build/
+release/
+
+# C/C++/CMake (Windows native build artifacts)
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/compile_commands.json
+**/*.dir/
+**/*.vcxproj*
+**/*.sln
+frontend/windows/flutter/ephemeral/
+
+# Keep FRB v2 generated Dart bindings tracked
+!frontend/lib/api.dart
+!frontend/lib/frb_generated.dart
+!frontend/lib/frb_generated.io.dart
+!frontend/lib/frb_generated.web.dart
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+
