@@ -198,6 +198,11 @@ pub fn export_database(dest_path: String) -> Result<bool, String> {
 }
 
 #[flutter_rust_bridge::frb]
+pub fn factory_reset() -> Result<bool, String> {
+    db::factory_reset()
+}
+
+#[flutter_rust_bridge::frb]
 pub fn run_sleep_cycle() -> Result<bool, String> {
     ai::run_sleep_cycle()
 }

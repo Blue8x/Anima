@@ -54,6 +54,9 @@ Future<bool> addProfileTrait(
 Future<bool> exportDatabase({required String destPath}) =>
     RustLib.instance.api.crateApiSimpleExportDatabase(destPath: destPath);
 
+Future<bool> factoryReset() =>
+    RustLib.instance.api.crateApiSimpleFactoryReset();
+
 Future<bool> runSleepCycle() =>
     RustLib.instance.api.crateApiSimpleRunSleepCycle();
 

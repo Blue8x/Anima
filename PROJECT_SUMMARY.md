@@ -1,166 +1,98 @@
 # Project Summary
 
-## What We've Built
+## Overview
 
-The **Anima** project is a comprehensive scaffolding for an AI-powered personal biography, diary, and mentoring application with the following components:
+**Anima** is now a local cognitive architecture: a private digital companion that runs entirely on-device, remembers what matters, and evolves through conversational memory and sleep-cycle consolidation.
 
-### ✅ Completed Components
+This project is no longer a scaffold-only prototype; it has a functional Rust + Flutter product loop with local inference, RAG memory retrieval, profile consolidation, multi-language UX, and reset/recovery controls.
 
-#### Documentation (Comprehensive)
-- **ARCHITECTURE.md** - Complete system design with 4-level memory architecture
-- **DATABASE/SCHEMA.md** - Detailed SQLite schema with 7 tables
-- **API.md** - Full IPC API specification with all endpoints
-- **IMPLEMENTATION_GUIDE.md** - Setup and development instructions
-- **ROADMAP.md** - 7-phase development roadmap
-- **README.md** - Project overview and getting started guide
+## Current Product State
 
-#### Backend (Rust)
-- **Database Manager** - Full CRUD operations for all memory tables
-- **Vector Search Engine** - Cosine similarity search for embeddings
-- **Memory Models** - Data structures for 4-level memory system
-- **Chat Service** - Message processing with RAG
-- **Sleep Cycle Service** - Memory consolidation scheduler
-- **AI Service** - Personality management
-- **Cargo.toml** - Complete dependency configuration
+### Backend (Rust, `frontend/rust`)
+- Local LLM inference via `llama.cpp` with dual runtime design:
+  - chat runtime
+  - embeddings runtime (`all-MiniLM-L6-v2.gguf`)
+- Semantic retrieval pipeline:
+  - per-message embedding generation
+  - storage in `memories` (SQLite BLOB)
+  - cosine similarity top-k retrieval with threshold filtering
+- Cognitive persistence and profile model:
+  - episodic raw memories (`memories`)
+  - profile traits (`profile_traits`)
+  - user configuration (`config`: name, language, prompt extras)
+- Sleep cycle implemented with JSON consolidation and profile fusion.
+- Language steering in chat system prompt using persisted app language.
+- Factory reset backend endpoint implemented:
+  - `factory_reset() -> Result<bool, String>`
+  - clears `memories`, `profile_traits`, and `config`.
 
-#### Frontend (Flutter)
-- **Main App** - Material Design 3 theme setup
-- **Home Screen** - Chat interface with message display area
-- **Services** - AnimaService for backend communication
-- **Widgets** - ChatBubble and MessageInput components
-- **pubspec.yaml** - All necessary dependencies configured
+### API / Bridge (FRB)
+- FRB v2 active and regenerated against current Rust API.
+- Core endpoints available for:
+  - chat send/history
+  - memory list/delete
+  - sleep cycle execution
+  - profile trait CRUD-lite (add/list/clear)
+  - app language and user name
+  - core prompt settings
+  - database export
+  - factory reset
 
-#### Project Structure
-- Organized directory layout for both backend and frontend
-- Clear separation of concerns (models, services, database)
-- Documentation structure with architecture and database schemas
-- Development guidance and contribution guidelines
+### Frontend (Flutter)
+- Onboarding flow with:
+  - user identity capture
+  - optional seed trait
+  - language selector (Español, Inglés, Chino, Árabe, Ruso)
+- Home chat UX with translated drawer/navigation labels.
+- Translation service (`tr(key)`) with Spanish fallback.
+- Digital Brain screen with grouped cognitive nodes.
+- Sleep-cycle UX upgraded:
+  - non-dismissible modal
+  - fake animated progress
+  - dynamic stage messages
+  - smooth fade/scale modal transition
+  - controlled shutdown when processing completes.
+- Settings/Command Center includes:
+  - core prompt extras
+  - database export
+  - **Factory Reset (double-confirmation destructive flow)**
+  - redirect to onboarding using `pushAndRemoveUntil`.
 
-### 🔄 Key Features Implemented
+## Key Delivered Capabilities
 
-1. **4-Level Memory Architecture**
-   - episodic_memory (raw conversations)
-   - semantic_memory (consolidated insights)
-   - user_identity (user profile)
-   - ai_self_model (AI personality evolution)
+1. **Local-first cognition**
+   - Inference, memory, and personalization fully local.
 
-2. **Database Design**
-   - SQLite with AES-256 encryption
-   - Vector search capability with sqlite-vec
-   - Proper indexing for performance
-   - Sleep cycle tracking
+2. **Dual memory model**
+   - Episodic recall (RAG context) + semantic profile consolidation.
 
-3. **API Design**
-   - Complete IPC-based API specification
-   - Chat, memory, sleep cycle, settings, and AI endpoints
-   - Consistent JSON response format
-   - Error handling patterns
+3. **Autonomous sleep cycle**
+   - Processes daily memories into long-term traits before shutdown.
 
-4. **Security Architecture**
-   - SQLCipher for database encryption
-   - Local-only processing
-   - No data synchronization
-   - Native key management
+4. **Identity consistency**
+   - Fixed base soul prompt + user augmentations.
 
-5. **Local LLM Integration (Phase 2 Completed)**
-   - `llama.cpp` inference integrated in Rust backend
-   - End-to-end chat generation connected to Flutter UI
-   - Runtime generation controls exposed (`temperature`, `max_tokens`)
-   - Prompt template configured for language consistency with user input
+5. **Multilingual operation**
+   - UI and assistant behavior aligned to selected app language.
 
-6. **RAG + Semantic Long-Term Memory (Phase 3 Completed)**
-   - Dedicated embedding model runtime added (`all-MiniLM-L6-v2.gguf`)
-   - SQLite `memories` table stores per-message embeddings as BLOB (`Vec<f32>` bytes)
-   - Pure Rust cosine similarity retrieval returns top-k relevant memories
-   - Similarity threshold filtering enabled (`>= 0.35`) to ignore irrelevant context
-   - Retrieved memories are injected into Llama system context under "Contexto pasado relevante"
-   - End-to-end flow active: embed -> store -> search -> prompt inject -> generate
+6. **Safety and recovery controls**
+   - One-click export + destructive full reset with double confirmation.
 
-7. **Internationalization + Language Steering (Completed)**
-   - App language persisted in Rust config via `get_app_language` / `set_app_language` with default `Español`
-   - FRB API exposes language getters/setters for Flutter integration
-   - Chat system prompt injects a strict language directive based on saved app language
-   - Onboarding includes language selector (`Inglés`, `Español`, `Chino`, `Árabe`, `Ruso`)
-   - Drawer labels, onboarding texts, chat input hint, and relative timestamps are translated dynamically
-   - Translation system uses `tr(key)` with fallback to Spanish
+## Documentation Alignment
 
-### 🧾 Changelog (Phase 5 + i18n)
+The following docs are already aligned to the current architecture and feature set:
+- `README.md`
+- `docs/ROADMAP.md`
+- `docs/API.md`
 
-- Added cognitive sleep cycle consolidation into persistent profile traits.
-- Implemented profile fusion from current profile and raw episodic memory.
-- Added Digital Brain and memory control surfaces in Flutter.
-- Added onboarding language selector for five supported languages.
-- Added dynamic UI translation with Spanish fallback.
-- Enforced LLM reply language via persisted `app_language` in system prompt.
+## Near-Term Priorities
 
-### 📋 Next Steps
-
-To continue development:
-
-1. **Complete IPC Bridge**
-   - Implement Unix socket/Named pipe server in Rust
-   - Create Flutter client for IPC communication
-   - Add message serialization/deserialization
-
-2. **Implement Chat Flow Enhancements**
-   - Message processing with vector search
-   - Context compilation from memory layers
-   - Advanced response quality tuning and guardrails
-   - Database storage of conversations
-
-3. **Implement Sleep Cycle**
-   - Unprocessed message retrieval
-   - LLM-based reflection and insight extraction
-   - Automatic memory consolidation
-   - Scheduled execution
-
-4. **Frontend Enhancement**
-   - Complete chat history display
-   - User identity management UI
-   - Memory browser/visualization
-   - Settings screen
-
-### 📊 Project Statistics
-
-- **Files Created**: 30+
-- **Lines of Code**: 3,000+
-- **Documentation Pages**: 5 comprehensive guides
-- **Database Tables**: 7
-- **Rust Modules**: 9
-- **Flutter Screens**: 1 (expandable)
-- **API Endpoints**: 15+
-
-### 🎯 Development Roadmap
-
-- **Phase 1** (Current): Core infrastructure ✓
-- **Phase 2** (Q1 2026): Local LLM integration and chat inference ✓
-- **Phase 3** (Q2 2026): Advanced memory features (RAG + semantic memory) ✓
-- **Phase 4** (Q2-Q3 2026): UI enhancements (Explorador de Memorias, Sala de Mandos, Legado y Alma Fija) ✓
-- **Phase 5** (Q3 2026): Sleep cycle cognition + profile consolidation + Digital Brain + i18n foundation ✓
-- **Phase 6** (Q3 2026): Security hardening
-- **Phase 7** (Q4 2026): Release
-
-### 🔧 Technology Stack
-
-- **Language**: Rust (backend), Dart/Flutter (frontend)
-- **Database**: SQLite with sqlite-vec extension
-- **LLM**: llama.cpp with quantized models
-- **Platform**: Cross-platform (iOS, Android, macOS, Windows)
-- **IPC**: Native sockets and named pipes
-- **Encryption**: AES-256 with SQLCipher
-
-### 📚 Documentation Quality
-
-All documentation includes:
-- Clear architecture diagrams
-- Table schemas with field descriptions
-- API endpoints with request/response examples
-- Setup instructions and troubleshooting
-- Development guidelines and best practices
-- Roadmap with success metrics
+1. Security hardening and key-management strategy.
+2. Broader platform QA/performance tuning.
+3. Release preparation (stability pass + packaging).
 
 ---
 
-**Status**: Phase 5 core completed (cognitive cycle + i18n), ready for Phase 6
-**Last Updated**: February 25, 2026
+**Status:** Phase 5 implemented (cognition + i18n + reset UX), entering Phase 6 hardening
+**Last Updated:** February 25, 2026
 

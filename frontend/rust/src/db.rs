@@ -325,6 +325,29 @@ pub fn export_database(dest_path: &str) -> Result<bool> {
     Ok(destination.exists())
 }
 
+pub fn factory_reset() -> std::result::Result<bool, String> {
+    let mut conn = open_connection().map_err(|error| format!("DB open failed: {error}"))?;
+    let transaction = conn
+        .transaction()
+        .map_err(|error| format!("DB transaction start failed: {error}"))?;
+
+    transaction
+        .execute("DELETE FROM memories", [])
+        .map_err(|error| format!("Factory reset failed clearing memories: {error}"))?;
+    transaction
+        .execute("DELETE FROM profile_traits", [])
+        .map_err(|error| format!("Factory reset failed clearing profile_traits: {error}"))?;
+    transaction
+        .execute("DELETE FROM config", [])
+        .map_err(|error| format!("Factory reset failed clearing config: {error}"))?;
+
+    transaction
+        .commit()
+        .map_err(|error| format!("Factory reset commit failed: {error}"))?;
+
+    Ok(true)
+}
+
 fn open_connection() -> Result<Connection> {
     let conn = Connection::open(DB_PATH)?;
     init_schema(&conn)?;

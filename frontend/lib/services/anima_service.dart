@@ -121,6 +121,18 @@ class AnimaService {
     }
   }
 
+  Future<bool> factoryReset() async {
+    _logger.i('factoryReset start');
+    try {
+      final reset = await rust_simple.factoryReset();
+      _logger.i('factoryReset result=$reset');
+      return reset;
+    } catch (e, st) {
+      _logger.e('factoryReset failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
   Future<List<ProfileTrait>> getProfileTraits() async {
     _logger.i('getProfileTraits start');
     try {
