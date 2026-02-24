@@ -3,20 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/anima_service.dart';
+import '../src/rust/db.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_input.dart';
-
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
-
-  ChatMessage({
-    required this.text,
-    required this.isUser,
-    DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
-}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,8 +16,32 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
-  final List<ChatMessage> _messages = [];
+  List<ChatMessage> _historyMessages = [];
+  List<ChatMessage> _sessionMessages = [];
+  bool _isHistoryExpanded = false;
   bool isTyping = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final animaService = context.read<AnimaService>();
+      final history = await animaService.loadHistory();
+      if (!mounted) return;
+      setState(() {
+        _historyMessages = history;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load history: $e')));
+    }
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -45,8 +58,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _sendMessage(String content) async {
     if (content.trim().isEmpty) return;
 
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
     setState(() {
-      _messages.add(ChatMessage(text: content, isUser: true));
+      _sessionMessages = [
+        ..._sessionMessages,
+        ChatMessage(
+          id: DateTime.now().millisecondsSinceEpoch,
+          role: 'user',
+          content: content,
+          timestamp: nowIso,
+        ),
+      ];
       isTyping = true;
     });
     _scrollToBottom();
@@ -57,7 +80,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted) return;
       setState(() {
-        _messages.add(ChatMessage(text: response, isUser: false));
+        _sessionMessages = [
+          ..._sessionMessages,
+          ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch + 1,
+            role: 'assistant',
+            content: response,
+            timestamp: DateTime.now().toUtc().toIso8601String(),
+          ),
+        ];
         isTyping = false;
       });
     } catch (e) {
@@ -81,6 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final messagesToRender = _isHistoryExpanded
+        ? [..._historyMessages, ..._sessionMessages]
+        : _sessionMessages;
+
     return Scaffold(
       appBar: AppBar(
         title: const Column(
@@ -99,7 +134,23 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: _scrollController,
               padding: const EdgeInsets.all(16),
               children: [
-                if (_messages.isEmpty)
+                if (_historyMessages.isNotEmpty)
+                  Align(
+                    alignment: Alignment.center,
+                    child: TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _isHistoryExpanded = !_isHistoryExpanded;
+                        });
+                      },
+                      child: Text(
+                        _isHistoryExpanded
+                            ? 'Ocultar historial anterior'
+                            : 'Desplegar historial anterior',
+                      ),
+                    ),
+                  ),
+                if (messagesToRender.isEmpty)
                   const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),
@@ -136,11 +187,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                for (final memory in _messages)
+                for (final memory in messagesToRender)
                   ChatBubble(
-                    message: memory.text,
-                    isUser: memory.isUser,
-                    timestamp: memory.timestamp,
+                    message: memory.content,
+                    isUser: memory.role == 'user',
+                    timestamp: _parseTimestamp(memory.timestamp),
                   ),
                 if (isTyping)
                   const Padding(
@@ -154,5 +205,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  DateTime _parseTimestamp(String timestamp) {
+    final parsed =
+        DateTime.tryParse(timestamp) ?? DateTime.tryParse(timestamp.replaceFirst(' ', 'T'));
+    return parsed ?? DateTime.now();
   }
 }

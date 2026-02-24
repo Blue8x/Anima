@@ -2,6 +2,7 @@
 
 import 'package:logger/logger.dart';
 import '../api.dart' as rust_api;
+import '../src/rust/db.dart';
 import '../src/rust/api/simple.dart' as rust_simple;
 
 class AnimaService {
@@ -26,6 +27,18 @@ class AnimaService {
         error: e,
         stackTrace: st,
       );
+      rethrow;
+    }
+  }
+
+  Future<List<ChatMessage>> loadHistory() async {
+    _logger.i('loadHistory start');
+    try {
+      final history = await rust_simple.getChatHistory();
+      _logger.i('loadHistory success count=${history.length}');
+      return history;
+    } catch (e, st) {
+      _logger.e('loadHistory failed', error: e, stackTrace: st);
       rethrow;
     }
   }

@@ -3,6 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import '../db.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -11,3 +12,6 @@ String greet({required String name}) =>
 
 Future<String> sendMessage({required String message}) =>
     RustLib.instance.api.crateApiSimpleSendMessage(message: message);
+
+Future<List<ChatMessage>> getChatHistory() =>
+    RustLib.instance.api.crateApiSimpleGetChatHistory();
