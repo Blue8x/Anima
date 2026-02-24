@@ -8,6 +8,9 @@ cmake_minimum_required(VERSION 3.14)
 set(PROJECT_NAME "rust_lib_anima")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
+# Keep cargokit temporary build paths short on Windows to avoid MSBuild FTK1011 path issues.
+set(CARGOKIT_TEMP_DIR "C:/cargokit/${PROJECT_NAME}")
+
 include("../cargokit/cmake/cargokit.cmake")
 apply_cargokit(${PROJECT_NAME} ../../../../../../rust rust_lib_anima "")
 

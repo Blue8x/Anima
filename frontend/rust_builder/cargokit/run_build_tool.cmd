@@ -5,6 +5,14 @@ setlocal ENABLEDELAYEDEXPANSION
 
 SET BASEDIR=%~dp0
 
+if "%VSCMD_VER%"=="" (
+    if exist "%ProgramFiles%\Microsoft Visual Studio\18\Community\Common7\Tools\VsDevCmd.bat" (
+        call "%ProgramFiles%\Microsoft Visual Studio\18\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul 2>&1
+    ) else if exist "%ProgramFiles%\Microsoft Visual Studio\17\Community\Common7\Tools\VsDevCmd.bat" (
+        call "%ProgramFiles%\Microsoft Visual Studio\17\Community\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul 2>&1
+    )
+)
+
 if not exist "%CARGOKIT_TOOL_TEMP_DIR%" (
     mkdir "%CARGOKIT_TOOL_TEMP_DIR%"
 )

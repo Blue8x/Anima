@@ -58,6 +58,15 @@ dist/
 build/
 release/
 
+# Local LLM models (never commit)
+models/*.gguf
+/models/
+
+# Cargokit temporary caches (if generated inside repo)
+**/cargokit_build/
+**/.cargokit/
+**/cargokit-temp/
+
 # C/C++/CMake (Windows native build artifacts)
 **/CMakeFiles/
 **/CMakeCache.txt

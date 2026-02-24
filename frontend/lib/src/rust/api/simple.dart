@@ -7,11 +7,17 @@ import '../db.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `resolve_model_path`
+
 String greet({required String name}) =>
     RustLib.instance.api.crateApiSimpleGreet(name: name);
 
-Future<String> sendMessage({required String message}) =>
-    RustLib.instance.api.crateApiSimpleSendMessage(message: message);
+Future<String> sendMessage(
+        {required String message,
+        required double temperature,
+        required int maxTokens}) =>
+    RustLib.instance.api.crateApiSimpleSendMessage(
+        message: message, temperature: temperature, maxTokens: maxTokens);
 
 Future<List<ChatMessage>> getChatHistory() =>
     RustLib.instance.api.crateApiSimpleGetChatHistory();

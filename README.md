@@ -2,6 +2,12 @@
 
 Anima is your private biographer, journal, and mentor. It remembers what matters, supports your growth, and runs fully offline. Zero cloud. Total privacy.
 
+## Current Milestone
+
+- Phase 2 (Local LLM integration with `llama.cpp`) is completed.
+- Real-time local inference is running in Rust and connected end-to-end to the Flutter chat UI.
+- Generation parameters are already wired from Flutter to Rust (`temperature`, `max_tokens`) for runtime control.
+
 ## Value Proposition
 
 Anima is a cross-platform app that works as a personal biographer, intelligent diary, and AI mentor. What sets it apart:

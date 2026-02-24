@@ -15,7 +15,11 @@ class AnimaService {
     _logger.i('processMessage start');
     _logger.d('processMessage payload length=${text.length}');
     try {
-      final response = await rust_simple.sendMessage(message: text);
+      final response = await rust_simple.sendMessage(
+        message: text,
+        temperature: 0.7,
+        maxTokens: 512,
+      );
       stopwatch.stop();
       _logger.i('processMessage success in ${stopwatch.elapsedMilliseconds}ms');
       _logger.d('processMessage response length=${response.length}');
