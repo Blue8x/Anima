@@ -1,13 +1,34 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:window_manager/window_manager.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/anima_service.dart';
 import 'services/translation_service.dart';
 import 'src/rust/frb_generated.dart';
+import 'widgets/custom_title_bar.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isWindows) {
+    await windowManager.ensureInitialized();
+    const options = WindowOptions(
+      size: Size(1200, 800),
+      minimumSize: Size(980, 680),
+      center: true,
+      titleBarStyle: TitleBarStyle.hidden,
+      backgroundColor: Color(0xFF09090B),
+    );
+
+    windowManager.waitUntilReadyToShow(options, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+  }
+
   await RustLib.init();
   final animaService = AnimaService();
   await animaService.initialize();
@@ -77,6 +98,17 @@ class AnimaApp extends StatelessWidget {
               ),
               useMaterial3: true,
             ),
+            builder: (context, child) {
+              final content = child ?? const SizedBox.shrink();
+              if (!Platform.isWindows) return content;
+
+              return Column(
+                children: [
+                  const CustomTitleBar(),
+                  Expanded(child: content),
+                ],
+              );
+            },
             home: initialScreen,
           );
         },
