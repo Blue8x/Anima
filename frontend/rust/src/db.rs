@@ -1,9 +1,8 @@
 use chrono::Utc;
-use rusqlite::{params, Connection, Result, TransactionBehavior};
+use rusqlite::{params, Connection, Result};
 use std::cmp::Ordering;
 use std::path::Path;
 use std::sync::OnceLock;
-use std::thread::sleep;
 use std::time::Duration;
 
 const DB_PATH: &str = "anima_chat.db";
@@ -402,68 +401,18 @@ pub fn export_database(dest_path: &str) -> Result<bool> {
 }
 
 pub fn factory_reset() -> std::result::Result<bool, String> {
-    let mut last_error = String::new();
-
-    for attempt in 0..3 {
-        match factory_reset_once() {
-            Ok(done) => return Ok(done),
-            Err(error) => {
-                let locked = error.contains("database is locked")
-                    || error.contains("database table is locked")
-                    || error.contains("SQLITE_BUSY")
-                    || error.contains("SQLITE_LOCKED");
-
-                if locked && attempt < 2 {
-                    sleep(Duration::from_millis(250 * (attempt + 1) as u64));
-                    last_error = error;
-                    continue;
-                }
-
-                return Err(error);
-            }
+    // Nuclear option: physically delete the DB file (and WAL/SHM) then recreate from scratch.
+    // This bypasses all SQLite lock contention entirely.
+    for suffix in &["", "-wal", "-shm"] {
+        let path = format!("{}{}", DB_PATH, suffix);
+        if std::path::Path::new(&path).exists() {
+            std::fs::remove_file(&path)
+                .map_err(|e| format!("Failed to delete '{}': {}", path, e))?;
         }
     }
 
-    Err(if last_error.is_empty() {
-        "Factory reset failed after retries".to_string()
-    } else {
-        last_error
-    })
-}
-
-fn factory_reset_once() -> std::result::Result<bool, String> {
-    let mut conn = open_connection().map_err(|error| format!("DB open failed: {error}"))?;
-    let transaction = conn
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|error| format!("DB transaction start failed: {error}"))?;
-
-    transaction
-        .execute("DELETE FROM memories", [])
-        .map_err(|error| format!("Factory reset failed clearing memories: {error}"))?;
-    transaction
-        .execute("DELETE FROM profile_traits", [])
-        .map_err(|error| format!("Factory reset failed clearing profile_traits: {error}"))?;
-    transaction
-        .execute("DELETE FROM config", [])
-        .map_err(|error| format!("Factory reset failed clearing config: {error}"))?;
-    transaction
-        .execute("DELETE FROM messages", [])
-        .map_err(|error| format!("Factory reset failed clearing messages: {error}"))?;
-
-    match transaction.execute("DELETE FROM sqlite_sequence", []) {
-        Ok(_) => {}
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table: sqlite_sequence") => {}
-        Err(error) => {
-            return Err(format!(
-                "Factory reset failed resetting sqlite sequences: {error}"
-            ));
-        }
-    }
-
-    transaction
-        .commit()
-        .map_err(|error| format!("Factory reset commit failed: {error}"))?;
+    // Recreate the database with a clean schema.
+    init_db().map_err(|e| format!("Failed to reinitialize database: {e}"))?;
 
     Ok(true)
 }

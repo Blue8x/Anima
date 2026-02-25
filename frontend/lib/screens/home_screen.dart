@@ -240,8 +240,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     if (_isInitializing) {
       return Scaffold(
+        backgroundColor: Colors.black,
         body: Center(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset(
@@ -250,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 130,
                 fit: BoxFit.contain,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               const CircularProgressIndicator(),
             ],
           ),
