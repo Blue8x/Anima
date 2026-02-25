@@ -401,18 +401,30 @@ pub fn export_database(dest_path: &str) -> Result<bool> {
 }
 
 pub fn factory_reset() -> std::result::Result<bool, String> {
-    // Nuclear option: physically delete the DB file (and WAL/SHM) then recreate from scratch.
-    // This bypasses all SQLite lock contention entirely.
+    // Step 1: Open a connection and force WAL flush + switch to DELETE journal mode.
+    // This releases the -wal/-shm file handles that Windows keeps locked
+    // even after the connection appears closed, preventing remove_file from succeeding.
+    {
+        let conn = Connection::open(DB_PATH)
+            .map_err(|e| format!("Cannot open DB to prepare reset: {e}"))?;
+        let _ = conn.busy_timeout(Duration::from_secs(3));
+        // Flush WAL into main file and release SHM mapping
+        let _ = conn.execute_batch(
+            "PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;",
+        );
+    } // conn is dropped here, releasing all file handles
+
+    // Step 2: Delete the DB file (and any remnant WAL/SHM files).
     for suffix in &["", "-wal", "-shm"] {
         let path = format!("{}{}", DB_PATH, suffix);
         if std::path::Path::new(&path).exists() {
             std::fs::remove_file(&path)
-                .map_err(|e| format!("Failed to delete '{}': {}", path, e))?;
+                .map_err(|e| format!("Cannot delete '{}': {}", path, e))?;
         }
     }
 
-    // Recreate the database with a clean schema.
-    init_db().map_err(|e| format!("Failed to reinitialize database: {e}"))?;
+    // Step 3: Recreate the database with a clean schema.
+    init_db().map_err(|e| format!("DB reinit failed: {e}"))?;
 
     Ok(true)
 }

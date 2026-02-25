@@ -381,32 +381,46 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
 
     let subconscious_user_input = format!("CONVERSATION HISTORY:\n{}", conversation_block);
 
-    let subconscious_response = generate_with_system_prompt(
+    let subconscious_response = match generate_with_system_prompt(
         SUBCONSCIOUS_SYSTEM_PROMPT,
         &subconscious_user_input,
         0.1,
         1024,
-    )?;
+    ) {
+        Ok(resp) => resp,
+        Err(e) => {
+            eprintln!("[sleep_cycle] LLM inference failed (skipping memory consolidation): {e}");
+            return Ok(true); // still return success so the app can close
+        }
+    };
 
     let cleaned_response = clean_json_response(&subconscious_response);
 
-    let parsed: Value = serde_json::from_str(&cleaned_response).map_err(|error| {
-            format!(
-                "Sleep cycle JSON parse failed: {error}. Raw response: {}",
+    let parsed: Value = match serde_json::from_str(&cleaned_response) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!(
+                "[sleep_cycle] JSON parse failed (skipping memory consolidation): {e}. Raw: {}",
                 subconscious_response
-            )
-        })?;
+            );
+            return Ok(true); // not fatal — app still closes cleanly
+        }
+    };
 
-    let semantic_items = parse_memory_array(&parsed, "semantic")?;
-    let episodic_items = parse_memory_array(&parsed, "episodic")?;
+    let semantic_items = parse_memory_array(&parsed, "semantic").unwrap_or_default();
+    let episodic_items = parse_memory_array(&parsed, "episodic").unwrap_or_default();
     let now_unix = db::current_unix_timestamp();
 
     for content in semantic_items {
-        persist_memory_item(&content, "semantic", now_unix)?;
+        if let Err(e) = persist_memory_item(&content, "semantic", now_unix) {
+            eprintln!("[sleep_cycle] Failed to persist semantic memory: {e}");
+        }
     }
 
     for content in episodic_items {
-        persist_memory_item(&content, "episodic", now_unix)?;
+        if let Err(e) = persist_memory_item(&content, "episodic", now_unix) {
+            eprintln!("[sleep_cycle] Failed to persist episodic memory: {e}");
+        }
     }
 
     Ok(true)

@@ -273,17 +273,12 @@ class _BrainScreenState extends State<BrainScreen> {
       exit(0);
     } catch (e) {
       fakeProgressTimer.cancel();
-      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${tr(context, 'errorSleepCycle')}: $e')),
-      );
-      setState(() {
-        _isProcessingSleep = false;
-      });
+      // Even if memory consolidation failed, show error briefly then close.
+      progress = 1.0;
+      statusText = '⚠️ ${e.toString().split(":").first}';
+      refreshDialog();
+      await Future.delayed(const Duration(seconds: 2));
+      exit(0);
     }
   }
 
