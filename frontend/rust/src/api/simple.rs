@@ -252,7 +252,7 @@ pub fn export_database(dest_path: String) -> Result<bool, String> {
 pub fn factory_reset() -> Result<bool, String> {
     eprintln!("[factory_reset_api] request received");
 
-    let (tx, rx) = mpsc::channel::<Result<bool, String>>();
+    let (tx, rx) = mpsc::channel::<Result<(), String>>();
 
     thread::spawn(move || {
         let result = db::factory_reset();
@@ -262,7 +262,7 @@ pub fn factory_reset() -> Result<bool, String> {
     match rx.recv_timeout(Duration::from_secs(10)) {
         Ok(result) => {
             eprintln!("[factory_reset_api] completed");
-            result
+            result.map(|_| true)
         }
         Err(mpsc::RecvTimeoutError::Timeout) => {
             eprintln!("[factory_reset_api] timeout after 10s");

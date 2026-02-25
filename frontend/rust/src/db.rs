@@ -1,7 +1,6 @@
 use chrono::Utc;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, Result, TransactionBehavior};
 use std::cmp::Ordering;
-use std::io::ErrorKind;
 use std::path::Path;
 use std::sync::OnceLock;
 use std::thread::sleep;
@@ -402,61 +401,74 @@ pub fn export_database(dest_path: &str) -> Result<bool> {
     Ok(destination.exists())
 }
 
-pub fn factory_reset() -> std::result::Result<bool, String> {
+pub fn factory_reset() -> std::result::Result<(), String> {
     eprintln!("[factory_reset] start");
+    let mut last_error = String::new();
 
-    // No connection pool exists in this app. We open a temporary connection,
-    // force checkpoint/journal switch, and drop it explicitly to release handles.
-    if Path::new(DB_PATH).exists() {
-        let conn = Connection::open(DB_PATH)
-            .map_err(|error| format!("Factory reset open failed: {error}"))?;
-        let _ = conn.busy_timeout(Duration::from_secs(2));
-        let _ = conn.execute_batch(
-            "PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE; PRAGMA optimize;",
-        );
-        drop(conn);
-        eprintln!("[factory_reset] maintenance connection dropped");
-    }
+    for attempt in 0..4 {
+        let mut conn = open_connection().map_err(|error| format!("DB open failed: {error}"))?;
+        let tx = conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|error| format!("DB transaction start failed: {error}"))?;
 
-    for suffix in ["", "-wal", "-shm"] {
-        let path = format!("{}{}", DB_PATH, suffix);
-        remove_file_with_retries(&path)?;
-    }
-    eprintln!("[factory_reset] database files deleted");
+        let result = (|| -> std::result::Result<(), String> {
+            tx.execute("DELETE FROM memories", [])
+                .map_err(|error| format!("Factory reset failed clearing memories: {error}"))?;
+            tx.execute("DELETE FROM profile_traits", [])
+                .map_err(|error| format!("Factory reset failed clearing profile_traits: {error}"))?;
+            tx.execute("DELETE FROM config", [])
+                .map_err(|error| format!("Factory reset failed clearing config: {error}"))?;
+            tx.execute("DELETE FROM messages", [])
+                .map_err(|error| format!("Factory reset failed clearing messages: {error}"))?;
 
-    init_db().map_err(|error| format!("Factory reset re-init failed: {error}"))?;
-    eprintln!("[factory_reset] database re-initialized");
+            match tx.execute("DELETE FROM sqlite_sequence", []) {
+                Ok(_) => {}
+                Err(rusqlite::Error::SqliteFailure(_, Some(message)))
+                    if message.contains("no such table: sqlite_sequence") => {}
+                Err(error) => {
+                    return Err(format!("Factory reset failed resetting sqlite_sequence: {error}"));
+                }
+            }
 
-    Ok(true)
-}
+            tx.commit()
+                .map_err(|error| format!("Factory reset commit failed: {error}"))?;
 
-fn remove_file_with_retries(path: &str) -> std::result::Result<(), String> {
-    let path_obj = Path::new(path);
-    if !path_obj.exists() {
-        return Ok(());
-    }
+            Ok(())
+        })();
 
-    for attempt in 0..8 {
-        match std::fs::remove_file(path_obj) {
-            Ok(_) => return Ok(()),
-            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        match result {
+            Ok(()) => {
+                eprintln!("[factory_reset] soft reset completed");
+                return Ok(());
+            }
             Err(error) => {
-                if attempt == 7 {
-                    return Err(format!("Failed deleting '{path}': {error}"));
+                let lower = error.to_lowercase();
+                let is_locked = lower.contains("database is locked")
+                    || lower.contains("database table is locked")
+                    || lower.contains("sqlite_busy")
+                    || lower.contains("sqlite_locked");
+
+                if is_locked && attempt < 3 {
+                    eprintln!(
+                        "[factory_reset] locked on attempt {}/4, retrying: {}",
+                        attempt + 1,
+                        error
+                    );
+                    last_error = error;
+                    sleep(Duration::from_millis(200 * (attempt + 1) as u64));
+                    continue;
                 }
 
-                eprintln!(
-                    "[factory_reset] delete retry {}/8 for '{}' due to: {}",
-                    attempt + 1,
-                    path,
-                    error
-                );
-                sleep(Duration::from_millis(150));
+                return Err(error);
             }
         }
     }
 
-    Err(format!("Failed deleting '{path}' after retries"))
+    Err(if last_error.is_empty() {
+        "Factory reset failed after retries".to_string()
+    } else {
+        last_error
+    })
 }
 
 fn open_connection() -> Result<Connection> {

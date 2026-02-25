@@ -219,49 +219,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<int> _tryEmergencyDeleteDbFiles() async {
-    const dbFiles = ['anima_chat.db', 'anima_chat.db-wal', 'anima_chat.db-shm'];
-    final candidateDirs = <String>{Directory.current.path};
-
-    try {
-      final docs = await getApplicationDocumentsDirectory();
-      candidateDirs.add(docs.path);
-    } catch (_) {}
-
-    try {
-      final support = await getApplicationSupportDirectory();
-      candidateDirs.add(support.path);
-    } catch (_) {}
-
-    var deleted = 0;
-    for (final dirPath in candidateDirs) {
-      for (final name in dbFiles) {
-        final filePath = '$dirPath${Platform.pathSeparator}$name';
-        final file = File(filePath);
-        if (await file.exists()) {
-          try {
-            await file.delete();
-            deleted++;
-            debugPrint('[factory_reset_ui] emergency deleted: $filePath');
-          } catch (e) {
-            debugPrint('[factory_reset_ui] emergency delete failed for $filePath: $e');
-          }
-        }
-      }
-    }
-
-    return deleted;
-  }
-
-  Future<void> _restartAppDetached() async {
-    final executable = Platform.resolvedExecutable;
-    final args = List<String>.from(Platform.executableArguments);
-    debugPrint('[factory_reset_ui] restarting app executable=$executable args=${args.length}');
-
-    await Process.start(executable, args, mode: ProcessStartMode.detached);
-    exit(0);
-  }
-
   Future<void> _runFactoryResetFlow() async {
     if (_isFactoryResetting) return;
 
@@ -323,7 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('[factory_reset_ui] request start');
       final animaService = context.read<AnimaService>();
       final resetOk = await animaService.factoryReset().timeout(
-        const Duration(seconds: 12),
+        const Duration(seconds: 4),
       );
       debugPrint('[factory_reset_ui] request completed result=$resetOk');
       if (!mounted) return;
@@ -348,45 +305,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       debugPrint('[factory_reset_ui] request failed error=$e');
       if (!mounted) return;
-
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
-      final navigator = Navigator.of(context);
-      final forcedCompletedText = tr(context, 'factoryResetForcedCompleted');
-      final resetErrorPrefix = tr(context, 'factoryResetError');
-
-      final isTimeout = e is TimeoutException || e.toString().toLowerCase().contains('timed out');
-      if (isTimeout) {
-        final deletedFiles = await _tryEmergencyDeleteDbFiles();
-        debugPrint('[factory_reset_ui] emergency delete files count=$deletedFiles');
-
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text(forcedCompletedText)));
-
-        setState(() {
-          _userName = '';
-          _temperature = 0.7;
-          _selectedLanguage = 'ES';
-        });
-
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (!mounted) return;
-
-        if (Platform.isWindows) {
-          try {
-            await _restartAppDetached();
-            return;
-          } catch (restartError) {
-            debugPrint('[factory_reset_ui] restart failed: $restartError');
-          }
-        }
-
-        navigator.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-          (route) => false,
-        );
-        return;
-      }
-
-      scaffoldMessenger.showSnackBar(SnackBar(content: Text('$resetErrorPrefix: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${tr(context, 'factoryResetError')}: $e')));
     } finally {
       debugPrint('[factory_reset_ui] finally set loading false mounted=$mounted');
       if (mounted) {
