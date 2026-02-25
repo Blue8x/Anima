@@ -272,6 +272,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isFactoryResetting = true;
     });
 
+    var flowFinished = false;
+    final hardStopTimer = Timer(const Duration(seconds: 6), () {
+      if (!mounted || flowFinished) return;
+      debugPrint('[factory_reset_ui] watchdog forced spinner off');
+      setState(() {
+        _isFactoryResetting = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(context, 'factoryResetError'))),
+      );
+    });
+
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(tr(context, 'formattingAnima'))));
@@ -309,6 +321,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('${tr(context, 'factoryResetError')}: $e')));
     } finally {
+      flowFinished = true;
+      hardStopTimer.cancel();
       debugPrint('[factory_reset_ui] finally set loading false mounted=$mounted');
       if (mounted) {
         setState(() {
