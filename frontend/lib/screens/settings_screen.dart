@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -209,8 +211,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final rawPayload = await animaService.exportBrain();
       final exportPayload = _ensureUsableBackupPayload(rawPayload);
 
+      final password = await _askBackupPassword(t);
+      if (password == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t('exportCancelled'))));
+        return;
+      }
+
+      final isEncrypted = password.trim().isNotEmpty;
+      final finalPayload = isEncrypted
+          ? await _encryptBackupPayload(exportPayload, password.trim())
+          : exportPayload;
+
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final defaultFileName = 'anima_brain_$timestamp.json';
+      final defaultFileName = isEncrypted
+          ? 'anima_brain_$timestamp.encrypted.json'
+          : 'anima_brain_$timestamp.json';
 
       final selectedPath = await FilePicker.platform.saveFile(
         dialogTitle: t('exportBrain'),
@@ -232,7 +250,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : '$selectedPath.json';
 
       final file = File(targetPath);
-      await file.writeAsString(exportPayload, flush: true);
+      await file.writeAsString(finalPayload, flush: true);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -250,6 +268,143 @@ class _SettingsScreenState extends State<SettingsScreen> {
         });
       }
     }
+  }
+
+  Future<String?> _askBackupPassword(String Function(String) t) async {
+    final passwordController = TextEditingController();
+    final confirmController = TextEditingController();
+    bool obscure = true;
+    String? validationError;
+
+    final result = await showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF18181B),
+              title: Text(t('encryptBackupTitle')),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    t('encryptBackupHint'),
+                    style: TextStyle(color: Colors.grey.shade300, fontSize: 13),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: obscure,
+                    decoration: InputDecoration(
+                      labelText: t('backupPassword'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: confirmController,
+                    obscureText: obscure,
+                    decoration: InputDecoration(
+                      labelText: t('backupPasswordConfirm'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: !obscure,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            obscure = !(value ?? false);
+                          });
+                        },
+                      ),
+                      Expanded(child: Text(t('showPassword'))),
+                    ],
+                  ),
+                  if (validationError != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        validationError!,
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(null),
+                  child: Text(t('cancel')),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final pass = passwordController.text;
+                    final confirm = confirmController.text;
+
+                    if (pass.isNotEmpty && pass != confirm) {
+                      setDialogState(() {
+                        validationError = t('passwordMismatch');
+                      });
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(pass);
+                  },
+                  child: Text(t('save')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    passwordController.dispose();
+    confirmController.dispose();
+    return result;
+  }
+
+  Future<String> _encryptBackupPayload(String plainJson, String password) async {
+    final random = Random.secure();
+    final salt = List<int>.generate(16, (_) => random.nextInt(256));
+    final nonce = List<int>.generate(12, (_) => random.nextInt(256));
+
+    final pbkdf2 = Pbkdf2(
+      macAlgorithm: Hmac.sha256(),
+      iterations: 120000,
+      bits: 256,
+    );
+
+    final secretKey = await pbkdf2.deriveKey(
+      secretKey: SecretKey(utf8.encode(password)),
+      nonce: salt,
+    );
+
+    final algorithm = AesGcm.with256bits();
+    final secretBox = await algorithm.encrypt(
+      utf8.encode(plainJson),
+      secretKey: secretKey,
+      nonce: nonce,
+    );
+
+    final encryptedEnvelope = {
+      'format': 'anima-backup-encrypted-v1',
+      'kdf': {
+        'name': 'PBKDF2-HMAC-SHA256',
+        'iterations': 120000,
+        'salt': base64Encode(salt),
+      },
+      'cipher': {
+        'name': 'AES-256-GCM',
+        'nonce': base64Encode(secretBox.nonce),
+        'tag': base64Encode(secretBox.mac.bytes),
+      },
+      'payload': base64Encode(secretBox.cipherText),
+      'exported_at': DateTime.now().toIso8601String(),
+    };
+
+    return const JsonEncoder.withIndent('  ').convert(encryptedEnvelope);
   }
 
   String _ensureUsableBackupPayload(String rawPayload) {
