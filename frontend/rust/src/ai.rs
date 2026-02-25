@@ -361,8 +361,11 @@ fn language_name_for_prompt(language_code_or_name: &str) -> String {
 }
 
 pub fn run_sleep_cycle() -> Result<bool, String> {
+    eprintln!("[sleep_cycle] start");
     let conversation_history = db::get_all_messages().map_err(|error| format!("DB error: {error}"))?;
+    eprintln!("[sleep_cycle] loaded messages count={}", conversation_history.len());
     if conversation_history.is_empty() {
+        eprintln!("[sleep_cycle] no messages to process, finish");
         return Ok(true);
     }
 
@@ -380,6 +383,7 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
         .join("\n");
 
     let subconscious_user_input = format!("CONVERSATION HISTORY:\n{}", conversation_block);
+    eprintln!("[sleep_cycle] prompting subconscious model");
 
     let subconscious_response = match generate_with_system_prompt(
         SUBCONSCIOUS_SYSTEM_PROMPT,
@@ -387,7 +391,10 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
         0.1,
         1024,
     ) {
-        Ok(resp) => resp,
+        Ok(resp) => {
+            eprintln!("[sleep_cycle] model response received length={}", resp.len());
+            resp
+        }
         Err(e) => {
             eprintln!("[sleep_cycle] LLM inference failed (skipping memory consolidation): {e}");
             return Ok(true); // still return success so the app can close
@@ -397,7 +404,10 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
     let cleaned_response = clean_json_response(&subconscious_response);
 
     let parsed: Value = match serde_json::from_str(&cleaned_response) {
-        Ok(v) => v,
+        Ok(v) => {
+            eprintln!("[sleep_cycle] json parsed successfully");
+            v
+        }
         Err(e) => {
             eprintln!(
                 "[sleep_cycle] JSON parse failed (skipping memory consolidation): {e}. Raw: {}",
@@ -409,6 +419,11 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
 
     let semantic_items = parse_memory_array(&parsed, "semantic").unwrap_or_default();
     let episodic_items = parse_memory_array(&parsed, "episodic").unwrap_or_default();
+    eprintln!(
+        "[sleep_cycle] extracted items semantic={} episodic={}",
+        semantic_items.len(),
+        episodic_items.len()
+    );
     let now_unix = db::current_unix_timestamp();
 
     for content in semantic_items {
@@ -422,6 +437,8 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
             eprintln!("[sleep_cycle] Failed to persist episodic memory: {e}");
         }
     }
+
+    eprintln!("[sleep_cycle] finish ok");
 
     Ok(true)
 }

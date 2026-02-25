@@ -276,10 +276,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ).showSnackBar(SnackBar(content: Text(tr(context, 'formattingAnima'))));
 
     try {
+      debugPrint('[factory_reset_ui] request start');
       final animaService = context.read<AnimaService>();
       final resetOk = await animaService.factoryReset().timeout(
         const Duration(seconds: 20),
       );
+      debugPrint('[factory_reset_ui] request completed result=$resetOk');
       if (!mounted) return;
 
       if (!resetOk) {
@@ -300,11 +302,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         (route) => false,
       );
     } catch (e) {
+      debugPrint('[factory_reset_ui] request failed error=$e');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('${tr(context, 'factoryResetError')}: $e')));
     } finally {
+      debugPrint('[factory_reset_ui] finally set loading false mounted=$mounted');
       if (mounted) {
         setState(() {
           _isFactoryResetting = false;

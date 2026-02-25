@@ -18,6 +18,7 @@ class _MirrorScreenState extends State<MirrorScreen> {
 
   Future<void> _processAndShutdown() async {
     if (_isProcessingSleep) return;
+    debugPrint('[sleep_ui_mirror] start');
 
     setState(() {
       _isProcessingSleep = true;
@@ -121,7 +122,9 @@ class _MirrorScreenState extends State<MirrorScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
+      debugPrint('[sleep_ui_mirror] calling triggerSleepCycle');
       await animaService.triggerSleepCycle();
+      debugPrint('[sleep_ui_mirror] triggerSleepCycle completed');
 
       fakeProgressTimer.cancel();
       progress = 1.0;
@@ -129,8 +132,10 @@ class _MirrorScreenState extends State<MirrorScreen> {
       refreshDialog();
 
       await Future.delayed(const Duration(seconds: 1));
+      debugPrint('[sleep_ui_mirror] exiting app (success)');
       exit(0);
     } catch (e) {
+      debugPrint('[sleep_ui_mirror] triggerSleepCycle failed error=$e');
       fakeProgressTimer.cancel();
       if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
         Navigator.of(context, rootNavigator: true).pop();

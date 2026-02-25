@@ -401,30 +401,39 @@ pub fn export_database(dest_path: &str) -> Result<bool> {
 }
 
 pub fn factory_reset() -> std::result::Result<bool, String> {
+    eprintln!("[factory_reset] start");
     let mut conn = open_connection().map_err(|error| format!("DB open failed: {error}"))?;
+    eprintln!("[factory_reset] connection opened");
     let transaction = conn
         .transaction()
         .map_err(|error| format!("DB transaction start failed: {error}"))?;
+    eprintln!("[factory_reset] transaction started");
 
     transaction
         .execute("DELETE FROM messages", [])
         .map_err(|error| format!("Factory reset failed clearing messages: {error}"))?;
+    eprintln!("[factory_reset] messages cleared");
     transaction
         .execute("DELETE FROM memories", [])
         .map_err(|error| format!("Factory reset failed clearing memories: {error}"))?;
+    eprintln!("[factory_reset] memories cleared");
     transaction
         .execute("DELETE FROM profile_traits", [])
         .map_err(|error| format!("Factory reset failed clearing profile_traits: {error}"))?;
+    eprintln!("[factory_reset] profile_traits cleared");
     transaction
         .execute("DELETE FROM config", [])
         .map_err(|error| format!("Factory reset failed clearing config: {error}"))?;
+    eprintln!("[factory_reset] config cleared");
     transaction
         .execute("DELETE FROM sqlite_sequence WHERE name = 'messages'", [])
         .map_err(|error| format!("Factory reset failed resetting messages sequence: {error}"))?;
+    eprintln!("[factory_reset] sqlite_sequence reset");
 
     transaction
         .commit()
         .map_err(|error| format!("Factory reset commit failed: {error}"))?;
+    eprintln!("[factory_reset] commit completed");
 
     Ok(true)
 }

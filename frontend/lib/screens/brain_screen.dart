@@ -154,6 +154,7 @@ class _BrainScreenState extends State<BrainScreen> {
 
   Future<void> _sleepAndShutdown() async {
     if (_isProcessingSleep) return;
+    debugPrint('[sleep_ui_brain] start');
 
     final translationService = context.read<TranslationService>();
 
@@ -262,7 +263,9 @@ class _BrainScreenState extends State<BrainScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
+      debugPrint('[sleep_ui_brain] calling triggerSleepCycle');
       await animaService.triggerSleepCycle();
+      debugPrint('[sleep_ui_brain] triggerSleepCycle completed');
 
       fakeProgressTimer.cancel();
       progress = 1.0;
@@ -270,14 +273,17 @@ class _BrainScreenState extends State<BrainScreen> {
       refreshDialog();
 
       await Future.delayed(const Duration(seconds: 1));
+      debugPrint('[sleep_ui_brain] exiting app (success)');
       exit(0);
     } catch (e) {
+      debugPrint('[sleep_ui_brain] triggerSleepCycle failed error=$e');
       fakeProgressTimer.cancel();
       // Even if memory consolidation failed, show error briefly then close.
       progress = 1.0;
       statusText = '⚠️ ${e.toString().split(":").first}';
       refreshDialog();
       await Future.delayed(const Duration(seconds: 2));
+      debugPrint('[sleep_ui_brain] exiting app (error fallback)');
       exit(0);
     }
   }
