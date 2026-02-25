@@ -132,12 +132,6 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
         ),
         child: Stack(
           children: [
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.045,
-                child: Image.asset('assets/web.png', fit: BoxFit.cover),
-              ),
-            ),
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _memories.isEmpty

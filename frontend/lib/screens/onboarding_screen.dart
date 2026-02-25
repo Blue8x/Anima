@@ -651,14 +651,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           children: [
             Positioned.fill(
               child: IgnorePointer(
-                child: Opacity(
-                  opacity: 0.045,
-                  child: Image.asset('assets/web.png', fit: BoxFit.cover),
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child: IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: RadialGradient(
