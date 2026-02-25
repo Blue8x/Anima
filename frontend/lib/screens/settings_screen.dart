@@ -219,6 +219,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<int> _tryEmergencyDeleteDbFiles() async {
+    const dbFiles = ['anima_chat.db', 'anima_chat.db-wal', 'anima_chat.db-shm'];
+    final candidateDirs = <String>{Directory.current.path};
+
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      candidateDirs.add(docs.path);
+    } catch (_) {}
+
+    try {
+      final support = await getApplicationSupportDirectory();
+      candidateDirs.add(support.path);
+    } catch (_) {}
+
+    var deleted = 0;
+    for (final dirPath in candidateDirs) {
+      for (final name in dbFiles) {
+        final filePath = '$dirPath${Platform.pathSeparator}$name';
+        final file = File(filePath);
+        if (await file.exists()) {
+          try {
+            await file.delete();
+            deleted++;
+            debugPrint('[factory_reset_ui] emergency deleted: $filePath');
+          } catch (e) {
+            debugPrint('[factory_reset_ui] emergency delete failed for $filePath: $e');
+          }
+        }
+      }
+    }
+
+    return deleted;
+  }
+
+  Future<void> _restartAppDetached() async {
+    final executable = Platform.resolvedExecutable;
+    final args = List<String>.from(Platform.executableArguments);
+    debugPrint('[factory_reset_ui] restarting app executable=$executable args=${args.length}');
+
+    await Process.start(executable, args, mode: ProcessStartMode.detached);
+    exit(0);
+  }
+
   Future<void> _runFactoryResetFlow() async {
     if (_isFactoryResetting) return;
 
@@ -308,6 +351,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       final isTimeout = e is TimeoutException || e.toString().toLowerCase().contains('timed out');
       if (isTimeout) {
+        final deletedFiles = await _tryEmergencyDeleteDbFiles();
+        debugPrint('[factory_reset_ui] emergency delete files count=$deletedFiles');
+
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(tr(context, 'factoryResetForcedCompleted'))));
@@ -320,6 +366,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         await Future.delayed(const Duration(milliseconds: 500));
         if (!mounted) return;
+
+        if (Platform.isWindows) {
+          try {
+            await _restartAppDetached();
+            return;
+          } catch (restartError) {
+            debugPrint('[factory_reset_ui] restart failed: $restartError');
+          }
+        }
 
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const OnboardingScreen()),
