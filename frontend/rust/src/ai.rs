@@ -203,8 +203,14 @@ where
     let app_language_for_prompt = language_name_for_prompt(&app_language);
     let user_extra_prompt = db::get_core_prompt().unwrap_or_default();
     let core_prompt = format!(
-        "{}\n\nEl nombre de la persona con la que hablas es: {}. Úsalo de forma natural.\nEl usuario ha configurado la aplicación en el idioma: {}. DEBES responder y comunicarte EXCLUSIVAMENTE en este idioma a partir de ahora, sin importar en qué idioma te hable el usuario.\n\nDirectrices adicionales del usuario:\n{}",
-        ANIMA_BASE_SOUL, user_name, app_language_for_prompt, user_extra_prompt
+        "{}\n\nEl nombre de la persona con la que hablas es: {}. Úsalo de forma natural.\nCRITICAL INSTRUCTION: You are forced to reply ONLY and EXCLUSIVELY in the following language: {} ({}). Do not use English unless the user explicitly asks for a translation. Your internal monologue and output must be in {} ({}).\n\nDirectrices adicionales del usuario:\n{}",
+        ANIMA_BASE_SOUL,
+        user_name,
+        app_language,
+        app_language_for_prompt,
+        app_language,
+        app_language_for_prompt,
+        user_extra_prompt
     );
 
     let consolidated_profile_block = match db::get_profile_traits() {
@@ -220,7 +226,11 @@ where
     };
 
     let system_prompt = format!("{}{}", core_prompt, consolidated_profile_block);
-    let user_prompt = format!("{}{}", prompt, memory_block);
+    let language_lock_note = format!(
+        "\n[System note: Remember your CRITICAL INSTRUCTION. Respond strictly in {} rules.]",
+        app_language
+    );
+    let user_prompt = format!("{}{}{}", prompt, language_lock_note, memory_block);
 
     generate_with_system_prompt_stream(
         &system_prompt,
@@ -506,6 +516,8 @@ fn generate_with_system_prompt_stream<F>(
 where
     F: FnMut(&str) -> Result<(), String>,
 {
+    let sampling_temperature = temperature.min(0.7);
+
     let backend_lock = get_or_init_backend()?;
     let backend = backend_lock
         .lock()
@@ -545,7 +557,7 @@ where
         .decode(&mut prompt_batch)
         .map_err(|error| format!("Initial decode failed: {error}"))?;
 
-    let mut sampler = if temperature <= 0.0 {
+    let mut sampler = if sampling_temperature <= 0.0 {
         LlamaSampler::greedy()
     } else {
         let seed = SystemTime::now()
@@ -556,7 +568,7 @@ where
             LlamaSampler::penalties(REPEAT_LAST_N, REPEAT_PENALTY, 0.0, 0.0),
             LlamaSampler::top_k(40),
             LlamaSampler::top_p(0.92, 1),
-            LlamaSampler::temp(temperature),
+            LlamaSampler::temp(sampling_temperature),
             LlamaSampler::dist(seed),
         ])
     };
