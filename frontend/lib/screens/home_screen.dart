@@ -51,7 +51,16 @@ class _HomeScreenState extends State<HomeScreen> {
       final history = await animaService.loadHistory();
       if (!mounted) return;
       setState(() {
-        _historyMessages = history;
+        _historyMessages = history
+            .map(
+              (message) => ChatMessage(
+                id: message.id,
+                role: message.role,
+                content: _normalizeModelText(message.content),
+                timestamp: message.timestamp,
+              ),
+            )
+            .toList();
       });
 
       if (history.isEmpty) {
@@ -99,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ChatMessage(
             id: DateTime.now().millisecondsSinceEpoch + 1,
             role: 'assistant',
-            content: greeting,
+            content: _normalizeModelText(greeting),
             timestamp: DateTime.now().toUtc().toIso8601String(),
           ),
         ];
@@ -160,6 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final animaService = context.read<AnimaService>();
       await for (final chunk in animaService.streamMessage(content)) {
         if (!mounted) return;
+        final normalizedChunk = _normalizeModelText(chunk);
         setState(() {
           _sessionMessages = _sessionMessages
               .map(
@@ -167,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? ChatMessage(
                         id: message.id,
                         role: message.role,
-                        content: '${message.content}$chunk',
+                        content: '${message.content}$normalizedChunk',
                         timestamp: message.timestamp,
                       )
                     : message,
@@ -428,5 +438,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final parsed =
         DateTime.tryParse(timestamp) ?? DateTime.tryParse(timestamp.replaceFirst(' ', 'T'));
     return parsed ?? DateTime.now();
+  }
+
+  String _normalizeModelText(String text) {
+    return text
+        .replaceAll(r'\r\n', '\n')
+        .replaceAll(r'\n', '\n')
+        .replaceAll(r'\t', '\t');
   }
 }

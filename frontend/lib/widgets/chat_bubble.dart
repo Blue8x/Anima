@@ -18,6 +18,8 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final normalizedMessage = _normalizeMessage(message);
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -35,13 +37,13 @@ class ChatBubble extends StatelessWidget {
           children: [
             isUser
                 ? Text(
-                    message,
+                    normalizedMessage,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onPrimary,
                     ),
                   )
                 : MarkdownBody(
-                    data: message,
+                    data: normalizedMessage,
                     selectable: true,
                     styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
                       p: TextStyle(
@@ -93,5 +95,12 @@ class ChatBubble extends StatelessWidget {
     } else {
       return '${dateTime.month}/${dateTime.day}';
     }
+  }
+
+  String _normalizeMessage(String text) {
+    return text
+        .replaceAll(r'\r\n', '\n')
+        .replaceAll(r'\n', '\n')
+        .replaceAll(r'\t', '\t');
   }
 }
