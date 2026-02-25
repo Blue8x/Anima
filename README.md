@@ -14,6 +14,20 @@ Anima combines local inference, semantic memory, and nightly cognitive consolida
 
 ---
 
+## Anima.ai (Web Experience)
+
+`Anima.ai` será la versión web oficial con la misma estética premium oscura, identidad visual consistente y foco en claridad emocional + privacidad.
+
+### Preview de la Web
+
+![Anima.ai web preview](frontend/assets/web.png)
+
+### Preview de la App
+
+![Anima app preview](frontend/assets/logo.png)
+
+---
+
 ## Core Capabilities
 
 - **Total Privacy**  

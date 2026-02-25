@@ -20,6 +20,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isSavingPrompt = false;
   bool _isExporting = false;
   bool _isFactoryResetting = false;
+  bool _isBackHovered = false;
+
+  Widget _buildAnimatedAppBarBackButton() {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() {
+          _isBackHovered = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          _isBackHovered = false;
+        });
+      },
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 170),
+        curve: Curves.easeOutCubic,
+        scale: _isBackHovered ? 1.06 : 1.0,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 170),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: _isBackHovered ? Colors.white.withAlpha(12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _isBackHovered
+                  ? Colors.white.withAlpha(24)
+                  : Colors.transparent,
+            ),
+          ),
+          child: IconButton(
+            tooltip: 'Back',
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -214,68 +253,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sala de Mandos y Legado')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Añadidos a la personalidad (Opcional)'),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _corePromptController,
-                      maxLines: null,
-                      expands: true,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText:
-                            'Ej: Háblame de usted, o compórtate como un sargento...',
+      appBar: AppBar(
+        leading: _buildAnimatedAppBarBackButton(),
+        title: const Text('Sala de Mandos y Legado'),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF09090B), Color(0xFF0F1021), Color(0xFF1B1842)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.045,
+                child: Image.asset('assets/web.png', fit: BoxFit.cover),
+              ),
+            ),
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(9),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white.withAlpha(18)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text('Añadidos a la personalidad (Opcional)'),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _corePromptController,
+                              maxLines: null,
+                              expands: true,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText:
+                                    'Ej: Háblame de usted, o compórtate como un sargento...',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: _isSavingPrompt ? null : _saveCorePrompt,
+                            child: _isSavingPrompt
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Text('Guardar Core Prompt'),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: _isExporting ? null : _exportBrain,
+                            icon: const Icon(Icons.download),
+                            label: _isExporting
+                                ? const Text('Exportando Cerebro...')
+                                : const Text('Exportar Cerebro'),
+                          ),
+                          const SizedBox(height: 14),
+                          ElevatedButton(
+                            onPressed: _isFactoryResetting ? null : _runFactoryResetFlow,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: _isFactoryResetting
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Formatear Anima (Borrado Total)'),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _isSavingPrompt ? null : _saveCorePrompt,
-                    child: _isSavingPrompt
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Guardar Core Prompt'),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: _isExporting ? null : _exportBrain,
-                    icon: const Icon(Icons.download),
-                    label: _isExporting
-                        ? const Text('Exportando Cerebro...')
-                        : const Text('Exportar Cerebro'),
-                  ),
-                  const SizedBox(height: 14),
-                  ElevatedButton(
-                    onPressed: _isFactoryResetting ? null : _runFactoryResetFlow,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: _isFactoryResetting
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Formatear Anima (Borrado Total)'),
-                  ),
-                ],
-              ),
-            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -186,10 +186,11 @@ where
 
     let user_name = db::get_user_name().unwrap_or_default();
     let app_language = db::get_app_language().unwrap_or_else(|_| "Español".to_string());
+    let app_language_for_prompt = language_name_for_prompt(&app_language);
     let user_extra_prompt = db::get_core_prompt().unwrap_or_default();
     let core_prompt = format!(
         "{}\n\nEl nombre de la persona con la que hablas es: {}. Úsalo de forma natural.\nEl usuario ha configurado la aplicación en el idioma: {}. DEBES responder y comunicarte EXCLUSIVAMENTE en este idioma a partir de ahora, sin importar en qué idioma te hable el usuario.\n\nDirectrices adicionales del usuario:\n{}",
-        ANIMA_BASE_SOUL, user_name, app_language, user_extra_prompt
+        ANIMA_BASE_SOUL, user_name, app_language_for_prompt, user_extra_prompt
     );
 
     let consolidated_profile_block = match db::get_profile_traits() {
@@ -216,6 +217,7 @@ where
 pub fn generate_proactive_greeting(time_of_day: &str) -> Result<String, String> {
     let user_name = db::get_user_name().unwrap_or_default();
     let app_language = db::get_app_language().unwrap_or_else(|_| "Español".to_string());
+    let app_language_for_prompt = language_name_for_prompt(&app_language);
     let user_extra_prompt = db::get_core_prompt().unwrap_or_default();
 
     let profile_text = match db::get_profile_traits() {
@@ -244,7 +246,7 @@ Directrices adicionales del usuario:
             user_name.as_str()
         },
         profile = profile_text,
-        language = app_language,
+        language = app_language_for_prompt,
         time_of_day = time_of_day,
         user_extra_prompt = user_extra_prompt,
     );
@@ -257,6 +259,38 @@ Directrices adicionales del usuario:
     )?;
 
     Ok(generated)
+}
+
+fn language_name_for_prompt(language_code_or_name: &str) -> String {
+    match language_code_or_name.trim().to_uppercase().as_str() {
+        "ES" | "ESPAÑOL" => "Español".to_string(),
+        "EN" | "INGLÉS" | "INGLES" | "ENGLISH" => "English".to_string(),
+        "CH" | "ZH" | "CHINO" | "中文" => "中文 (Chinese)".to_string(),
+        "AR" | "ÁRABE" | "ARABE" | "العربية" => "العربية (Arabic)".to_string(),
+        "RU" | "RUSO" | "РУССКИЙ" => "Русский (Russian)".to_string(),
+        "JP" | "JA" | "JAPONÉS" | "JAPONES" | "日本語" => "日本語 (Japanese)".to_string(),
+        "DE" | "ALEMÁN" | "ALEMAN" | "DEUTSCH" => "Deutsch (German)".to_string(),
+        "FR" | "FRANCÉS" | "FRANCES" | "FRANÇAIS" => "Français (French)".to_string(),
+        "PT" | "PORTUGUÉS" | "PORTUGUES" | "PORTUGUÊS" => {
+            "Português (Portuguese)".to_string()
+        }
+        "HI" | "हिन्दी" | "HINDI" => "हिन्दी (Hindi)".to_string(),
+        "BN" | "বাংলা" | "BENGALI" => "বাংলা (Bengali)".to_string(),
+        "UR" | "اردو" | "URDU" => "اردو (Urdu)".to_string(),
+        "ID" | "BAHASA INDONESIA" | "INDONESIAN" => {
+            "Bahasa Indonesia (Indonesian)".to_string()
+        }
+        "KO" | "KOREAN" | "한국어" => "한국어 (Korean)".to_string(),
+        "VI" | "VIETNAMESE" | "TIẾNG VIỆT" | "TIENG VIET" => {
+            "Tiếng Việt (Vietnamese)".to_string()
+        }
+        "IT" | "ITALIAN" | "ITALIANO" => "Italiano (Italian)".to_string(),
+        "TR" | "TURKISH" | "TÜRKÇE" | "TURKCE" => "Türkçe (Turkish)".to_string(),
+        "TA" | "TAMIL" | "தமிழ்" => "தமிழ் (Tamil)".to_string(),
+        "TH" | "THAI" | "ไทย" => "ไทย (Thai)".to_string(),
+        "PL" | "POLISH" | "POLSKI" => "Polski (Polish)".to_string(),
+        other => other.to_string(),
+    }
 }
 
 pub fn run_sleep_cycle() -> Result<bool, String> {

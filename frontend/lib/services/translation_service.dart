@@ -4,23 +4,134 @@ import 'package:provider/provider.dart';
 class TranslationService extends ChangeNotifier {
   String _language;
 
-  TranslationService({String initialLanguage = 'Español'})
-      : _language = initialLanguage;
+  TranslationService({String initialLanguage = 'ES'})
+      : _language = normalizeLanguageCode(initialLanguage);
 
   String get language => _language;
 
   void setLanguage(String language) {
-    _language = language;
+    _language = normalizeLanguageCode(language);
     notifyListeners();
   }
 
   static const List<String> supportedLanguages = [
-    'Inglés',
-    'Español',
-    'Chino',
-    'Árabe',
-    'Ruso',
+    'ES',
+    'EN',
+    'CH',
+    'AR',
+    'RU',
+    'JP',
+    'DE',
+    'FR',
+    'HI',
+    'PT',
+    'BN',
+    'UR',
+    'ID',
+    'KO',
+    'VI',
+    'IT',
+    'TR',
+    'TA',
+    'TH',
+    'PL',
   ];
+
+  static String normalizeLanguageCode(String value) {
+    switch (value.trim().toUpperCase()) {
+      case 'ES':
+      case 'ESPAÑOL':
+        return 'ES';
+      case 'EN':
+      case 'INGLÉS':
+      case 'INGLES':
+      case 'ENGLISH':
+        return 'EN';
+      case 'CH':
+      case 'ZH':
+      case 'CHINO':
+      case '中文':
+        return 'CH';
+      case 'AR':
+      case 'ÁRABE':
+      case 'ARABE':
+      case 'العربية':
+        return 'AR';
+      case 'RU':
+      case 'RUSO':
+      case 'РУССКИЙ':
+        return 'RU';
+      case 'JP':
+      case 'JA':
+      case 'JAPONÉS':
+      case 'JAPONES':
+      case '日本語':
+        return 'JP';
+      case 'DE':
+      case 'ALEMÁN':
+      case 'ALEMAN':
+      case 'DEUTSCH':
+        return 'DE';
+      case 'FR':
+      case 'FRANCÉS':
+      case 'FRANCES':
+      case 'FRANÇAIS':
+        return 'FR';
+      case 'PT':
+      case 'PORTUGUÉS':
+      case 'PORTUGUES':
+      case 'PORTUGUÊS':
+        return 'PT';
+      case 'HI':
+      case 'हिन्दी':
+      case 'HINDI':
+        return 'HI';
+      case 'BN':
+      case 'বাংলা':
+      case 'BENGALI':
+        return 'BN';
+      case 'UR':
+      case 'اردو':
+      case 'URDU':
+        return 'UR';
+      case 'ID':
+      case 'BAHASA INDONESIA':
+      case 'INDONESIAN':
+        return 'ID';
+      case 'KO':
+      case 'KOREAN':
+      case '한국어':
+        return 'KO';
+      case 'VI':
+      case 'VIETNAMESE':
+      case 'TIẾNG VIỆT':
+      case 'TIENG VIET':
+        return 'VI';
+      case 'IT':
+      case 'ITALIAN':
+      case 'ITALIANO':
+        return 'IT';
+      case 'TR':
+      case 'TURKISH':
+      case 'TÜRKÇE':
+      case 'TURKCE':
+        return 'TR';
+      case 'TA':
+      case 'TAMIL':
+      case 'தமிழ்':
+        return 'TA';
+      case 'TH':
+      case 'THAI':
+      case 'ไทย':
+        return 'TH';
+      case 'PL':
+      case 'POLISH':
+      case 'POLSKI':
+        return 'PL';
+      default:
+        return 'ES';
+    }
+  }
 
   static const Map<String, Map<String, String>> _translations = {
     'chat': {
@@ -70,6 +181,26 @@ class TranslationService extends ChangeNotifier {
           'Я твой локальный мозг: приватный, постоянный и созданный, чтобы сопровождать тебя, помнить и помогать расти.',
     },
     'nameQuestion': {
+      'EN': 'What is your name?',
+      'ES': '¿Cómo te llamas?',
+      'CH': '你叫什么名字？',
+      'AR': 'ما اسمك؟',
+      'RU': 'Как тебя зовут?',
+      'JP': 'お名前は何ですか？',
+      'DE': 'Wie heißt du?',
+      'FR': 'Comment tu t’appelles ?',
+      'HI': 'तुम्हारा नाम क्या है?',
+      'PT': 'Como você se chama?',
+      'BN': 'তোমার নাম কী?',
+      'UR': 'آپ کا نام کیا ہے؟',
+      'ID': 'Siapa namamu?',
+      'KO': '이름이 뭐예요?',
+      'VI': 'Bạn tên là gì?',
+      'IT': 'Come ti chiami?',
+      'TR': 'Adın ne?',
+      'TA': 'உன் பெயர் என்ன?',
+      'TH': 'คุณชื่ออะไร?',
+      'PL': 'Jak masz na imię?',
       'Inglés': 'What is your name?',
       'Español': '¿Cómo te llamas?',
       'Chino': '你叫什么名字？',
@@ -77,6 +208,26 @@ class TranslationService extends ChangeNotifier {
       'Ruso': 'Как тебя зовут?',
     },
     'optionalSeedQuestion': {
+      'EN': 'What should I know about you to begin? (Optional)',
+      'ES': '¿Qué te gustaría que supiera de ti para empezar? (Opcional)',
+      'CH': '你希望我一开始了解你什么？（可选）',
+      'AR': 'ما الذي تود أن أعرفه عنك في البداية؟ (اختياري)',
+      'RU': 'Что мне стоит знать о тебе для начала? (Необязательно)',
+      'JP': '始める前にあなたについて何を知っておくべきですか？（任意）',
+      'DE': 'Was sollte ich zu Beginn über dich wissen? (Optional)',
+      'FR': 'Que devrais-je savoir sur toi pour commencer ? (Optionnel)',
+      'HI': 'शुरू करने के लिए मुझे तुम्हारे बारे में क्या जानना चाहिए? (वैकल्पिक)',
+      'PT': 'O que devo saber sobre você para começar? (Opcional)',
+      'BN': 'শুরু করতে তোমার সম্পর্কে আমার কী জানা উচিত? (ঐচ্ছিক)',
+      'UR': 'شروع کرنے کے لیے مجھے آپ کے بارے میں کیا معلوم ہونا چاہیے؟ (اختیاری)',
+      'ID': 'Apa yang perlu aku ketahui tentangmu untuk memulai? (Opsional)',
+      'KO': '시작하려면 너에 대해 무엇을 알면 좋을까? (선택 사항)',
+      'VI': 'Để bắt đầu, mình nên biết gì về bạn? (Tùy chọn)',
+      'IT': 'Cosa dovrei sapere di te per iniziare? (Facoltativo)',
+      'TR': 'Başlamak için senin hakkında ne bilmeliyim? (İsteğe bağlı)',
+      'TA': 'தொடங்க நான் உன்னைப் பற்றி என்ன தெரிந்திருக்க வேண்டும்? (விருப்பத்தேர்வு)',
+      'TH': 'ฉันควรรู้อะไรเกี่ยวกับคุณเพื่อเริ่มต้น? (ไม่บังคับ)',
+      'PL': 'Co powinienem o tobie wiedzieć na początek? (Opcjonalnie)',
       'Inglés': 'What should I know about you to begin? (Optional)',
       'Español': '¿Qué te gustaría que supiera de ti para empezar? (Opcional)',
       'Chino': '你希望我一开始了解你什么？（可选）',
@@ -84,6 +235,26 @@ class TranslationService extends ChangeNotifier {
       'Ruso': 'Что мне стоит знать о тебе для начала? (Необязательно)',
     },
     'startJourney': {
+      'EN': 'Start journey',
+      'ES': 'Empezar viaje',
+      'CH': '开始旅程',
+      'AR': 'ابدأ الرحلة',
+      'RU': 'Начать путь',
+      'JP': '旅を始める',
+      'DE': 'Reise starten',
+      'FR': 'Commencer le voyage',
+      'HI': 'यात्रा शुरू करें',
+      'PT': 'Começar jornada',
+      'BN': 'যাত্রা শুরু করুন',
+      'UR': 'سفر شروع کریں',
+      'ID': 'Mulai perjalanan',
+      'KO': '여정을 시작하기',
+      'VI': 'Bắt đầu hành trình',
+      'IT': 'Inizia il viaggio',
+      'TR': 'Yolculuğa başla',
+      'TA': 'பயணத்தை தொடங்கு',
+      'TH': 'เริ่มการเดินทาง',
+      'PL': 'Rozpocznij podróż',
       'Inglés': 'Start journey',
       'Español': 'Empezar viaje',
       'Chino': '开始旅程',
@@ -91,6 +262,13 @@ class TranslationService extends ChangeNotifier {
       'Ruso': 'Начать путь',
     },
     'languageLabel': {
+      'EN': 'Language',
+      'ES': 'Idioma',
+      'CH': '语言',
+      'AR': 'اللغة',
+      'RU': 'Язык',
+      'JP': '言語',
+      'DE': 'Sprache',
       'Inglés': 'Language',
       'Español': 'Idioma',
       'Chino': '语言',
@@ -178,12 +356,143 @@ class TranslationService extends ChangeNotifier {
       'Árabe': 'قبل {n} س',
       'Ruso': '{n}ч назад',
     },
+    'back': {
+      'EN': 'Back',
+      'ES': 'Volver',
+      'CH': '返回',
+      'AR': 'رجوع',
+      'RU': 'Назад',
+      'JP': '戻る',
+      'DE': 'Zurück',
+      'FR': 'Retour',
+      'HI': 'वापस',
+      'PT': 'Voltar',
+      'BN': 'ফিরে যান',
+      'UR': 'واپس',
+      'ID': 'Kembali',
+      'KO': '뒤로',
+      'VI': 'Quay lại',
+      'IT': 'Indietro',
+      'TR': 'Geri',
+      'TA': 'திரும்பு',
+      'TH': 'ย้อนกลับ',
+      'PL': 'Wróć',
+      'Inglés': 'Back',
+      'Español': 'Atrás',
+      'Chino': '返回',
+      'Árabe': 'رجوع',
+      'Ruso': 'Назад',
+    },
+    'continue': {
+      'EN': 'Continue',
+      'ES': 'Continuar',
+      'CH': '继续',
+      'AR': 'متابعة',
+      'RU': 'Продолжить',
+      'JP': '続ける',
+      'DE': 'Weiter',
+      'FR': 'Continuer',
+      'HI': 'जारी रखें',
+      'PT': 'Continuar',
+      'BN': 'চালিয়ে যান',
+      'UR': 'جاری رکھیں',
+      'ID': 'Lanjutkan',
+      'KO': '계속하기',
+      'VI': 'Tiếp tục',
+      'IT': 'Continua',
+      'TR': 'Devam et',
+      'TA': 'தொடரவும்',
+      'TH': 'ดำเนินการต่อ',
+      'PL': 'Kontynuuj',
+      'Inglés': 'Continue',
+      'Español': 'Continuar',
+      'Chino': '继续',
+      'Árabe': 'متابعة',
+      'Ruso': 'Продолжить',
+    },
+    'nameInputHint': {
+      'EN': 'Type your name...',
+      'ES': 'Escribe tu nombre...',
+      'CH': '输入你的名字...',
+      'AR': 'اكتب اسمك...',
+      'RU': 'Введите ваше имя...',
+      'JP': 'あなたの名前を入力してください...',
+      'DE': 'Gib deinen Namen ein...',
+      'FR': 'Écris ton prénom...',
+      'HI': 'अपना नाम लिखें...',
+      'PT': 'Digite seu nome...',
+      'BN': 'তোমার নাম লিখো...',
+      'UR': 'اپنا نام لکھیں...',
+      'ID': 'Ketik namamu...',
+      'KO': '이름을 입력해 주세요...',
+      'VI': 'Nhập tên của bạn...',
+      'IT': 'Scrivi il tuo nome...',
+      'TR': 'Adını yaz...',
+      'TA': 'உன் பெயரை உள்ளிடு...',
+      'TH': 'พิมพ์ชื่อของคุณ...',
+      'PL': 'Wpisz swoje imię...',
+      'Inglés': 'Type your name...',
+      'Español': 'Escribe tu nombre...',
+      'Chino': '输入你的名字...',
+      'Árabe': 'اكتب اسمك...',
+      'Ruso': 'Введите ваше имя...',
+    },
+    'optionalSeedHint': {
+      'EN': 'Tell me something about you, your goals, or your context...',
+      'ES': 'Cuéntame algo sobre ti, tus metas o tu contexto...',
+      'CH': '告诉我一些关于你、你的目标或你的背景...',
+      'AR': 'أخبرني شيئًا عنك أو عن أهدافك أو عن سياقك...',
+      'RU': 'Расскажите что-нибудь о себе, своих целях или контексте...',
+      'JP': 'あなたのことや目標、背景について教えてください...',
+      'DE': 'Erzähl mir etwas über dich, deine Ziele oder deinen Kontext...',
+      'FR': 'Parle-moi un peu de toi, de tes objectifs ou de ton contexte...',
+      'HI': 'मुझे अपने बारे में, अपने लक्ष्यों या अपनी स्थिति के बारे में बताओ...',
+      'PT': 'Conte-me algo sobre você, seus objetivos ou seu contexto...',
+      'BN': 'তোমার সম্পর্কে, তোমার লক্ষ্য বা প্রেক্ষাপট সম্পর্কে কিছু বলো...',
+      'UR': 'اپنے بارے میں، اپنے اہداف یا اپنے حالات کے بارے میں کچھ بتائیں...',
+      'ID': 'Ceritakan sesuatu tentang dirimu, tujuanmu, atau konteksmu...',
+      'KO': '너 자신, 목표 또는 상황에 대해 알려줘...',
+      'VI': 'Hãy kể cho mình về bạn, mục tiêu hoặc bối cảnh của bạn...',
+      'IT': 'Raccontami qualcosa di te, dei tuoi obiettivi o del tuo contesto...',
+      'TR': 'Bana kendinden, hedeflerinden veya bağlamından bahset...',
+      'TA': 'உன்னைப் பற்றி, உன் இலக்குகள் அல்லது உன் சூழலைப் பற்றி சொல்லு...',
+      'TH': 'เล่าเกี่ยวกับตัวคุณ เป้าหมาย หรือบริบทของคุณให้ฉันฟัง...',
+      'PL': 'Opowiedz mi coś o sobie, swoich celach lub swoim kontekście...',
+      'Inglés': 'Tell me something about you, your goals, or your context...',
+      'Español': 'Cuéntame algo sobre ti, tus metas o tu contexto...',
+      'Chino': '告诉我一些关于你、你的目标或你的背景...',
+      'Árabe': 'أخبرني شيئًا عنك أو عن أهدافك أو عن سياقك...',
+      'Ruso': 'Расскажите что-нибудь о себе, своих целях или контексте...',
+    },
   };
 
   String tr(String key) {
     final languageMap = _translations[key];
     if (languageMap == null) return key;
-    return languageMap[_language] ?? languageMap['Español'] ?? key;
+
+    final legacyLanguageKey = _legacyLanguageKey(_language);
+    return languageMap[_language] ??
+        (legacyLanguageKey != null ? languageMap[legacyLanguageKey] : null) ??
+        languageMap['ES'] ??
+        languageMap['Español'] ??
+        key;
+  }
+
+  String? _legacyLanguageKey(String languageCode) {
+    switch (languageCode) {
+      case 'EN':
+        return 'Inglés';
+      case 'ES':
+        return 'Español';
+      case 'CH':
+        return 'Chino';
+      case 'AR':
+        return 'Árabe';
+      case 'RU':
+        return 'Ruso';
+      default:
+        return null;
+    }
   }
 }
 

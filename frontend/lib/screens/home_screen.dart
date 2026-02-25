@@ -25,6 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isHistoryExpanded = false;
   bool isTyping = false;
   bool _hasRequestedProactiveGreeting = false;
+  String? _hoveredDrawerItem;
+  bool _isCloseDrawerHovered = false;
 
   @override
   void initState() {
@@ -206,6 +208,80 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  Widget _buildPremiumDrawerItem({
+    required String id,
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool selected = false,
+  }) {
+    final hovered = _hoveredDrawerItem == id;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      child: MouseRegion(
+        onEnter: (_) {
+          setState(() {
+            _hoveredDrawerItem = id;
+          });
+        },
+        onExit: (_) {
+          setState(() {
+            if (_hoveredDrawerItem == id) {
+              _hoveredDrawerItem = null;
+            }
+          });
+        },
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          offset: hovered ? const Offset(0.015, 0) : Offset.zero,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: selected
+                  ? Theme.of(context).colorScheme.primary.withAlpha(24)
+                  : hovered
+                      ? Colors.white.withAlpha(10)
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected
+                    ? Theme.of(context).colorScheme.primary.withAlpha(65)
+                    : hovered
+                        ? Colors.white.withAlpha(24)
+                        : Colors.transparent,
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              child: ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                minLeadingWidth: 24,
+                leading: Icon(
+                  icon,
+                  color: selected
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface.withAlpha(220),
+                ),
+                title: Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                onTap: onTap,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final messagesToRender = _isHistoryExpanded
@@ -214,79 +290,199 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Anima'),
-            Text(
-              tr(context, 'personalCompanion'),
-              style: const TextStyle(fontSize: 12),
+            Container(
+              width: 30,
+              height: 30,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withAlpha(9),
+                border: Border.all(color: Colors.white.withAlpha(24)),
+              ),
+              child: Image.asset(
+                'assets/logo.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 9),
+            const Text(
+              'Anima',
+              style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.3),
             ),
           ],
         ),
         centerTitle: true,
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.deepPurple),
-              child: Text('Anima', style: TextStyle(fontSize: 24)),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF09090B), Color(0xFF111025), Color(0xFF1D1B45)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            ListTile(
-              leading: const Icon(Icons.chat_bubble_outline),
-              title: Text(tr(context, 'chat')),
-              onTap: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.memory_outlined),
-              title: Text(tr(context, 'memoryExplorer')),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const MemoryBrowserScreen(),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                  DrawerHeader(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary.withAlpha(120),
+                          Theme.of(context).colorScheme.primary.withAlpha(60),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: Colors.black.withAlpha(24),
+                          border: Border.all(color: Colors.white.withAlpha(22)),
+                      ),
+                      child: Center(
+                        child: Image.asset(
+                          'assets/logo.png',
+                          height: 54,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
                   ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.tune),
-              title: Text(tr(context, 'commandCenter')),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const SettingsScreen(),
+                  _buildPremiumDrawerItem(
+                    id: 'chat',
+                    icon: Icons.chat_bubble_outline,
+                    title: tr(context, 'chat'),
+                    selected: true,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                    },
                   ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.face_retouching_natural),
-              title: Text(tr(context, 'digitalBrain')),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BrainScreen(),
+                  _buildPremiumDrawerItem(
+                    id: 'memory',
+                    icon: Icons.memory_outlined,
+                    title: tr(context, 'memoryExplorer'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MemoryBrowserScreen(),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-          ],
+                  _buildPremiumDrawerItem(
+                    id: 'settings',
+                    icon: Icons.tune,
+                    title: tr(context, 'commandCenter'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildPremiumDrawerItem(
+                    id: 'brain',
+                    icon: Icons.face_retouching_natural,
+                    title: tr(context, 'digitalBrain'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const BrainScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  ],
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8, bottom: 8),
+                  child: MouseRegion(
+                    onEnter: (_) {
+                      setState(() {
+                        _isCloseDrawerHovered = true;
+                      });
+                    },
+                    onExit: (_) {
+                      setState(() {
+                        _isCloseDrawerHovered = false;
+                      });
+                    },
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 170),
+                      curve: Curves.easeOutCubic,
+                      scale: _isCloseDrawerHovered ? 1.06 : 1.0,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 170),
+                        curve: Curves.easeOutCubic,
+                        decoration: BoxDecoration(
+                          color: _isCloseDrawerHovered
+                              ? Colors.white.withAlpha(12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _isCloseDrawerHovered
+                                ? Colors.white.withAlpha(24)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          tooltip: 'Close menu',
+                          icon: Icon(
+                            Icons.arrow_back_ios_new,
+                            size: 18,
+                            color:
+                                Theme.of(context).colorScheme.onSurface.withAlpha(180),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF09090B), Color(0xFF0F1021), Color(0xFF1B1842)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.05,
+                child: Image.asset('assets/web.png', fit: BoxFit.cover),
+              ),
+            ),
+            Column(
               children: [
+                Expanded(
+                  child: ListView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    children: [
                 if (_historyMessages.isNotEmpty)
                   Align(
                     alignment: Alignment.center,
@@ -307,34 +503,56 @@ class _HomeScreenState extends State<HomeScreen> {
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.all(32),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.psychology,
-                              size: 64, color: Colors.deepPurple),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Anima',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 28,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withAlpha(18)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(30),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            tr(context, 'aiBiographerTagline'),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 32),
-                          Text(
-                            tr(context, 'welcomeIntro'),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontStyle: FontStyle.italic,
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Image.asset(
+                              'assets/logo.png',
+                              height: 52,
+                              width: 52,
+                              fit: BoxFit.contain,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 14),
+                            const Text(
+                              'Anima',
+                              style: TextStyle(
+                                fontSize: 25,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              tr(context, 'aiBiographerTagline'),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              tr(context, 'welcomeIntro'),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -349,11 +567,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Center(child: CircularProgressIndicator()),
                   ),
+                    ],
+                  ),
+                ),
+                MessageInput(onSend: _sendMessage, isLoading: isTyping),
               ],
             ),
-          ),
-          MessageInput(onSend: _sendMessage, isLoading: isTyping),
-        ],
+          ],
+        ),
       ),
     );
   }

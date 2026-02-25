@@ -14,6 +14,45 @@ class MemoryBrowserScreen extends StatefulWidget {
 class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
   List<MemoryItem> _memories = [];
   bool _isLoading = true;
+  bool _isBackHovered = false;
+
+  Widget _buildAnimatedAppBarBackButton() {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() {
+          _isBackHovered = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          _isBackHovered = false;
+        });
+      },
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 170),
+        curve: Curves.easeOutCubic,
+        scale: _isBackHovered ? 1.06 : 1.0,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 170),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: _isBackHovered ? Colors.white.withAlpha(12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _isBackHovered
+                  ? Colors.white.withAlpha(24)
+                  : Colors.transparent,
+            ),
+          ),
+          child: IconButton(
+            tooltip: 'Back',
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -77,33 +116,60 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Memorias')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _memories.isEmpty
-              ? const Center(child: Text('No hay memorias guardadas'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _memories.length,
-                  itemBuilder: (context, index) {
-                    final memory = _memories[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      child: ListTile(
-                        title: Text(
-                          memory.content,
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(memory.createdAt),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () => _deleteMemory(memory),
-                        ),
+      appBar: AppBar(
+        leading: _buildAnimatedAppBarBackButton(),
+        title: const Text('Memorias'),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF09090B), Color(0xFF0F1021), Color(0xFF1B1842)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.045,
+                child: Image.asset('assets/web.png', fit: BoxFit.cover),
+              ),
+            ),
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _memories.isEmpty
+                    ? const Center(child: Text('No hay memorias guardadas'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: _memories.length,
+                        itemBuilder: (context, index) {
+                          final memory = _memories[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            color: Colors.white.withAlpha(9),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(color: Colors.white.withAlpha(16)),
+                            ),
+                            child: ListTile(
+                              title: Text(
+                                memory.content,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(memory.createdAt),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                onPressed: () => _deleteMemory(memory),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
+          ],
+        ),
+      ),
     );
   }
 }

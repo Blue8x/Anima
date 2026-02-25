@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,8 +18,67 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _seedController = TextEditingController();
+  final FocusNode _nameFocusNode = FocusNode();
   bool _isSubmitting = false;
-  String _selectedLanguage = 'Español';
+  String _selectedLanguage = 'ES';
+  int _step = 0;
+  String? _hoveredLanguage;
+  double _wheelAngle = 0;
+  bool _isMoreHovered = false;
+
+  static const List<_LanguageOption> _languageOptions = [
+    _LanguageOption(
+      backendValue: 'ES',
+      nativeLabel: 'ES',
+      flagImageUrl: 'https://flagcdn.com/w320/es.png',
+    ),
+    _LanguageOption(
+      backendValue: 'EN',
+      nativeLabel: 'EN',
+      flagImageUrl: 'https://flagcdn.com/w320/us.png',
+    ),
+    _LanguageOption(
+      backendValue: 'CH',
+      nativeLabel: 'CH',
+      flagImageUrl: 'https://flagcdn.com/w320/cn.png',
+    ),
+    _LanguageOption(
+      backendValue: 'AR',
+      nativeLabel: 'AR',
+      flagImageUrl: 'https://flagcdn.com/w320/sa.png',
+    ),
+    _LanguageOption(
+      backendValue: 'RU',
+      nativeLabel: 'RU',
+      flagImageUrl: 'https://flagcdn.com/w320/ru.png',
+    ),
+    _LanguageOption(
+      backendValue: 'JP',
+      nativeLabel: 'JP',
+      flagImageUrl: 'https://flagcdn.com/w320/jp.png',
+    ),
+    _LanguageOption(
+      backendValue: 'DE',
+      nativeLabel: 'DE',
+      flagImageUrl: 'https://flagcdn.com/w320/de.png',
+    ),
+  ];
+
+  static const List<_ExtraLanguageOption> _extraLanguageOptions = [
+    _ExtraLanguageOption(code: 'FR', label: 'Français'),
+    _ExtraLanguageOption(code: 'HI', label: 'हिन्दी'),
+    _ExtraLanguageOption(code: 'PT', label: 'Português'),
+    _ExtraLanguageOption(code: 'BN', label: 'বাংলা'),
+    _ExtraLanguageOption(code: 'UR', label: 'اردو'),
+    _ExtraLanguageOption(code: 'ID', label: 'Bahasa Indonesia'),
+    _ExtraLanguageOption(code: 'KO', label: '한국어'),
+    _ExtraLanguageOption(code: 'VI', label: 'Tiếng Việt'),
+    _ExtraLanguageOption(code: 'IT', label: 'Italiano'),
+    _ExtraLanguageOption(code: 'TR', label: 'Türkçe'),
+    _ExtraLanguageOption(code: 'TA', label: 'தமிழ்'),
+    _ExtraLanguageOption(code: 'TH', label: 'ไทย'),
+    _ExtraLanguageOption(code: 'PL', label: 'Polski'),
+  ];
 
   @override
   void initState() {
@@ -28,9 +90,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     try {
       final animaService = context.read<AnimaService>();
       final savedLanguage = await animaService.getAppLanguage();
-      final language = TranslationService.supportedLanguages.contains(savedLanguage)
-          ? savedLanguage
-          : 'Español';
+        final language = TranslationService.normalizeLanguageCode(savedLanguage);
 
       if (!mounted) return;
       setState(() {
@@ -41,6 +101,157 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (!mounted) return;
       context.read<TranslationService>().setLanguage(_selectedLanguage);
     }
+  }
+
+  void _goToStep(int step) {
+    if (!mounted) return;
+    setState(() {
+      _step = step;
+    });
+
+    if (step == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _nameFocusNode.requestFocus();
+        }
+      });
+    }
+  }
+
+  Future<void> _selectLanguageAndContinue(String language) async {
+    if (_isSubmitting) return;
+
+    setState(() {
+      _selectedLanguage = language;
+    });
+
+    final translationService = context.read<TranslationService>();
+    translationService.setLanguage(language);
+
+    try {
+      await context.read<AnimaService>().setAppLanguage(language);
+    } catch (_) {}
+
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+
+    if (context.read<TranslationService>().language == language) {
+      _goToStep(1);
+    }
+  }
+
+  Future<void> _openMoreLanguages() async {
+    final selectedCode = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        String query = '';
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            final filtered = _extraLanguageOptions.where((option) {
+              final normalized = query.trim().toLowerCase();
+              if (normalized.isEmpty) return true;
+              return option.code.toLowerCase().contains(normalized) ||
+                  option.label.toLowerCase().contains(normalized);
+            }).toList();
+
+            return Dialog(
+              backgroundColor: const Color(0xFF17171C),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'More languages',
+                      style: TextStyle(
+                        color: Colors.white.withAlpha(230),
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      onChanged: (value) {
+                        setStateDialog(() {
+                          query = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Find language...',
+                        hintStyle: TextStyle(color: Colors.white.withAlpha(135)),
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.white.withAlpha(12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.white.withAlpha(24)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.white.withAlpha(24)),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                          borderSide: BorderSide(color: Color(0xFF8B5CF6)),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: filtered.map((option) {
+                        return InkWell(
+                          onTap: () => Navigator.of(context).pop(option.code),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(16),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withAlpha(28)),
+                            ),
+                            child: Text(
+                              '${option.code} · ${option.label}',
+                              style: TextStyle(
+                                color: Colors.white.withAlpha(220),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    if (filtered.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          'No matches found',
+                          style: TextStyle(color: Colors.white.withAlpha(150)),
+                        ),
+                      ),
+                    const SizedBox(height: 14),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Close'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (selectedCode == null || !mounted) return;
+    await _selectLanguageAndContinue(selectedCode);
   }
 
   Future<void> _startJourney() async {
@@ -60,7 +271,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
-      await animaService.setAppLanguage(_selectedLanguage);
+      final languageSaved = await animaService.setAppLanguage(_selectedLanguage);
+      if (!languageSaved) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo guardar el idioma.')),
+        );
+        setState(() {
+          _isSubmitting = false;
+        });
+        return;
+      }
+
+      context.read<TranslationService>().setLanguage(_selectedLanguage);
       final nameSaved = await animaService.setUserName(name);
 
       if (!nameSaved) {
@@ -97,99 +320,447 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void dispose() {
     _nameController.dispose();
     _seedController.dispose();
+    _nameFocusNode.dispose();
     super.dispose();
+  }
+
+  Widget _buildLanguageStep() {
+    const wheelSize = 340.0;
+    const radius = 112.0;
+    final angleStep = (2 * math.pi) / _languageOptions.length;
+
+    return SizedBox(
+      key: const ValueKey('language-step'),
+      width: wheelSize,
+      height: wheelSize,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          setState(() {
+            _wheelAngle += details.delta.dx * 0.012;
+          });
+        },
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              child: MouseRegion(
+                onEnter: (_) {
+                  setState(() {
+                    _isMoreHovered = true;
+                  });
+                },
+                onExit: (_) {
+                  setState(() {
+                    _isMoreHovered = false;
+                  });
+                },
+                child: InkWell(
+                  onTap: _openMoreLanguages,
+                  borderRadius: BorderRadius.circular(30),
+                  child: AnimatedScale(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    scale: _isMoreHovered ? 1.04 : 1.0,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 190),
+                      curve: Curves.easeOutCubic,
+                      width: 82,
+                      height: 82,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withAlpha(_isMoreHovered ? 20 : 14),
+                        border: Border.all(
+                          color: Colors.white.withAlpha(_isMoreHovered ? 44 : 35),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF8B5CF6).withAlpha(
+                              _isMoreHovered ? 34 : 26,
+                            ),
+                            blurRadius: _isMoreHovered ? 12 : 10,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'more...',
+                        style: TextStyle(
+                          color: Colors.white.withAlpha(230),
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            for (var index = 0; index < _languageOptions.length; index++)
+              Builder(builder: (_) {
+                final option = _languageOptions[index];
+                final angle = _wheelAngle + (index * angleStep) - (math.pi / 2);
+                final offsetX = math.cos(angle) * radius;
+                final offsetY = math.sin(angle) * radius;
+            final selected = _selectedLanguage == option.backendValue;
+            final hovered = _hoveredLanguage == option.backendValue;
+                return Transform.translate(
+                  offset: Offset(offsetX, offsetY),
+                  child: MouseRegion(
+                    onEnter: (_) {
+                      setState(() {
+                        _hoveredLanguage = option.backendValue;
+                      });
+                    },
+                    onExit: (_) {
+                      setState(() {
+                        _hoveredLanguage = null;
+                      });
+                    },
+                    child: GestureDetector(
+                      onTap: () => _selectLanguageAndContinue(option.backendValue),
+                      child: AnimatedScale(
+                        scale: hovered ? 1.08 : 1.0,
+                        duration: const Duration(milliseconds: 190),
+                        curve: Curves.easeOutCubic,
+                        child: SizedBox(
+                          width: 78,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 210),
+                                curve: Curves.easeOutCubic,
+                                width: 66,
+                                height: 66,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF0F1020),
+                                  border: Border.all(
+                                    color: selected
+                                        ? const Color(0xFFA78BFA)
+                                        : Colors.white.withAlpha(58),
+                                    width: selected ? 2.0 : 1.3,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withAlpha(50),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                    if (selected || hovered)
+                                      BoxShadow(
+                                        color: const Color(0xFF8B5CF6).withAlpha(52),
+                                        blurRadius: 13,
+                                        spreadRadius: 0,
+                                      ),
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(2.2),
+                                  child: ClipOval(
+                                    child: Image.network(
+                                      option.flagImageUrl,
+                                      fit: BoxFit.cover,
+                                      filterQuality: FilterQuality.high,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.flag_outlined,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                option.nativeLabel,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: selected
+                                      ? Colors.white
+                                      : Colors.white.withAlpha(190),
+                                  fontSize: 14,
+                                  fontWeight:
+                                      selected ? FontWeight.w600 : FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNameStep() {
+    return Column(
+      key: const ValueKey('name-step'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          tr(context, 'nameQuestion'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 28,
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          focusNode: _nameFocusNode,
+          controller: _nameController,
+          textInputAction: TextInputAction.done,
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) {
+            if (_nameController.text.trim().isNotEmpty) {
+              _goToStep(2);
+            }
+          },
+          decoration: InputDecoration(
+            hintText: tr(context, 'nameInputHint'),
+            hintStyle: TextStyle(color: Colors.white.withAlpha(140)),
+            filled: true,
+            fillColor: Colors.white.withAlpha(12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withAlpha(25)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withAlpha(25)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFF8B5CF6)),
+            ),
+          ),
+          style: const TextStyle(color: Colors.white),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => _goToStep(0),
+              child: Text(tr(context, 'back')),
+            ),
+            const Spacer(),
+            ElevatedButton(
+              onPressed: _nameController.text.trim().isEmpty
+                  ? null
+                  : () => _goToStep(2),
+              child: Text(tr(context, 'continue')),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContextStep() {
+    return Column(
+      key: const ValueKey('context-step'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          tr(context, 'optionalSeedQuestion'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 26,
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 18),
+        TextField(
+          controller: _seedController,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: tr(context, 'optionalSeedHint'),
+            hintStyle: TextStyle(color: Colors.white.withAlpha(140)),
+            filled: true,
+            fillColor: Colors.white.withAlpha(12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withAlpha(25)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withAlpha(25)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFF8B5CF6)),
+            ),
+          ),
+          style: const TextStyle(color: Colors.white),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => _goToStep(1),
+              child: Text(tr(context, 'back')),
+            ),
+            const Spacer(),
+            ElevatedButton(
+              onPressed: _isSubmitting ? null : _startJourney,
+              child: _isSubmitting
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(tr(context, 'startJourney')),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1E1B4B), Color(0xFF312E81), Color(0xFF0F172A)],
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF09090B),
+              Color(0xFF0D0C18),
+              Color(0xFF151234),
+              Color(0xFF1E1B4B),
+            ],
+            stops: [0.05, 0.38, 0.74, 1.0],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
+          backgroundBlendMode: BlendMode.srcOver,
         ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Card(
-              margin: const EdgeInsets.all(24),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      tr(context, 'onboardingTitle'),
-                      style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      tr(context, 'onboardingDescription'),
-                    ),
-                    const SizedBox(height: 24),
-                    DropdownButtonFormField<String>(
-                      value: _selectedLanguage,
-                      decoration: InputDecoration(
-                        labelText: tr(context, 'languageLabel'),
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: TranslationService.supportedLanguages
-                          .map(
-                            (lang) => DropdownMenuItem<String>(
-                              value: lang,
-                              child: Text(lang),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: _isSubmitting
-                          ? null
-                          : (value) {
-                              if (value == null) return;
-                              setState(() {
-                                _selectedLanguage = value;
-                              });
-                              context.read<TranslationService>().setLanguage(value);
-                            },
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: tr(context, 'nameQuestion'),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _seedController,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        labelText: tr(context, 'optionalSeedQuestion'),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _isSubmitting ? null : _startJourney,
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(tr(context, 'startJourney')),
-                    ),
-                  ],
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.045,
+                  child: Image.asset('assets/web.png', fit: BoxFit.cover),
                 ),
               ),
             ),
-          ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0.78, -0.86),
+                      radius: 0.7,
+                      colors: [
+                        const Color(0xFF8B5CF6).withAlpha(50),
+                        const Color(0xFF4F46E5).withAlpha(28),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.82, 0.92),
+                      radius: 0.9,
+                      colors: [
+                        const Color(0xFF312E81).withAlpha(38),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                    child: Container(
+                      margin: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(26),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(16),
+                        borderRadius: BorderRadius.circular(26),
+                        border: Border.all(color: Colors.white.withAlpha(26)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(56),
+                            blurRadius: 20,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 320),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(opacity: animation, child: child);
+                        },
+                        child: AnimatedSize(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 420),
+                            child: _step == 0
+                                ? _buildLanguageStep()
+                                : _step == 1
+                                    ? _buildNameStep()
+                                    : _buildContextStep(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _LanguageOption {
+  final String backendValue;
+  final String nativeLabel;
+  final String flagImageUrl;
+
+  const _LanguageOption({
+    required this.backendValue,
+    required this.nativeLabel,
+    required this.flagImageUrl,
+  });
+}
+
+class _ExtraLanguageOption {
+  final String code;
+  final String label;
+
+  const _ExtraLanguageOption({required this.code, required this.label});
 }

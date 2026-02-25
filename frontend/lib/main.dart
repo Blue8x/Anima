@@ -12,7 +12,9 @@ Future<void> main() async {
   final animaService = AnimaService();
   await animaService.initialize();
   final userName = await animaService.getUserName();
-  final appLanguage = await animaService.getAppLanguage();
+  final appLanguage = TranslationService.normalizeLanguageCode(
+    await animaService.getAppLanguage(),
+  );
   final initialScreen = userName.trim().isEmpty
       ? const OnboardingScreen()
       : const HomeScreen();

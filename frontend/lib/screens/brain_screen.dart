@@ -18,6 +18,42 @@ class _BrainScreenState extends State<BrainScreen> {
   Map<String, List<ProfileTrait>> _groupedTraits = {};
   bool _isLoading = true;
   bool _isProcessingSleep = false;
+  bool _isBackHovered = false;
+  bool _isResetHovered = false;
+
+  Widget _buildAnimatedAppBarIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    required bool hovered,
+    required ValueChanged<bool> onHoverChanged,
+  }) {
+    return MouseRegion(
+      onEnter: (_) => onHoverChanged(true),
+      onExit: (_) => onHoverChanged(false),
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 170),
+        curve: Curves.easeOutCubic,
+        scale: hovered ? 1.06 : 1.0,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 170),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: hovered ? Colors.white.withAlpha(12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hovered ? Colors.white.withAlpha(24) : Colors.transparent,
+            ),
+          ),
+          child: IconButton(
+            onPressed: onPressed,
+            tooltip: tooltip,
+            icon: Icon(icon, size: 18),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -265,35 +301,79 @@ class _BrainScreenState extends State<BrainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: _buildAnimatedAppBarIconButton(
+          icon: Icons.arrow_back_ios_new,
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+          hovered: _isBackHovered,
+          onHoverChanged: (value) {
+            setState(() {
+              _isBackHovered = value;
+            });
+          },
+        ),
         title: const Text('Cerebro Digital'),
         actions: [
-          IconButton(
-            onPressed: _confirmFactoryReset,
-            icon: const Icon(Icons.delete_outline),
+          _buildAnimatedAppBarIconButton(
+            icon: Icons.delete_outline,
             tooltip: 'Factory Reset Cognitivo',
+            onPressed: _confirmFactoryReset,
+            hovered: _isResetHovered,
+            onHoverChanged: (value) {
+              setState(() {
+                _isResetHovered = value;
+              });
+            },
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _groupedTraits.isEmpty
-              ? const Center(child: Text('No hay nodos cognitivos todavía'))
-              : ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: _groupedTraits.entries.map((entry) {
-                    return ExpansionTile(
-                      leading: Icon(_iconForCategory(entry.key)),
-                      title: Text(entry.key),
-                      children: entry.value
-                          .map(
-                            (trait) => ListTile(
-                              title: Text(trait.content),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF09090B), Color(0xFF0F1021), Color(0xFF1B1842)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.045,
+                child: Image.asset('assets/web.png', fit: BoxFit.cover),
+              ),
+            ),
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _groupedTraits.isEmpty
+                    ? const Center(child: Text('No hay nodos cognitivos todavía'))
+                    : ListView(
+                        padding: const EdgeInsets.all(12),
+                        children: _groupedTraits.entries.map((entry) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(9),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.white.withAlpha(16)),
                             ),
-                          )
-                          .toList(),
-                    );
-                  }).toList(),
-                ),
+                            child: ExpansionTile(
+                              leading: Icon(_iconForCategory(entry.key)),
+                              title: Text(entry.key),
+                              children: entry.value
+                                  .map(
+                                    (trait) => ListTile(
+                                      title: Text(trait.content),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _sleepAndShutdown,
         icon: const Icon(Icons.bedtime),
