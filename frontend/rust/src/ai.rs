@@ -360,13 +360,13 @@ fn language_name_for_prompt(language_code_or_name: &str) -> String {
     }
 }
 
-pub fn run_sleep_cycle() -> Result<bool, String> {
+pub fn run_sleep_cycle() -> Result<(), String> {
     eprintln!("[sleep_cycle] start");
     let conversation_history = db::get_all_messages().map_err(|error| format!("DB error: {error}"))?;
     eprintln!("[sleep_cycle] loaded messages count={}", conversation_history.len());
     if conversation_history.is_empty() {
         eprintln!("[sleep_cycle] no messages to process, finish");
-        return Ok(true);
+        return Ok(());
     }
 
     let conversation_block = conversation_history
@@ -397,7 +397,7 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
         }
         Err(e) => {
             eprintln!("[sleep_cycle] LLM inference failed (skipping memory consolidation): {e}");
-            return Ok(true); // still return success so the app can close
+            return Ok(()); // still return success so the app can close
         }
     };
 
@@ -413,7 +413,7 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
                 "[sleep_cycle] JSON parse failed (skipping memory consolidation): {e}. Raw: {}",
                 subconscious_response
             );
-            return Ok(true); // not fatal — app still closes cleanly
+            return Ok(()); // not fatal — app still closes cleanly
         }
     };
 
@@ -440,7 +440,7 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
 
     eprintln!("[sleep_cycle] finish ok");
 
-    Ok(true)
+    Ok(())
 }
 
 fn parse_memory_array(parsed: &Value, key: &str) -> Result<Vec<String>, String> {

@@ -259,7 +259,7 @@ pub fn factory_reset() -> Result<bool, String> {
 
 #[flutter_rust_bridge::frb]
 pub fn run_sleep_cycle() -> Result<bool, String> {
-    ai::run_sleep_cycle()
+    ai::run_sleep_cycle().map(|_| true)
 }
 
 #[flutter_rust_bridge::frb]

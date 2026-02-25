@@ -136,7 +136,6 @@ class _MirrorScreenState extends State<MirrorScreen> {
       exit(0);
     } catch (e) {
       debugPrint('[sleep_ui_mirror] triggerSleepCycle failed error=$e');
-      fakeProgressTimer.cancel();
       if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
         Navigator.of(context, rootNavigator: true).pop();
       }
@@ -145,7 +144,8 @@ class _MirrorScreenState extends State<MirrorScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error en el ciclo de sueño: $e')),
       );
-
+    } finally {
+      fakeProgressTimer.cancel();
       setState(() {
         _isProcessingSleep = false;
       });

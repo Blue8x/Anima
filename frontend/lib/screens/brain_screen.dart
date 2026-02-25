@@ -278,13 +278,21 @@ class _BrainScreenState extends State<BrainScreen> {
     } catch (e) {
       debugPrint('[sleep_ui_brain] triggerSleepCycle failed error=$e');
       fakeProgressTimer.cancel();
-      // Even if memory consolidation failed, show error briefly then close.
-      progress = 1.0;
-      statusText = '⚠️ ${e.toString().split(":").first}';
-      refreshDialog();
-      await Future.delayed(const Duration(seconds: 2));
-      debugPrint('[sleep_ui_brain] exiting app (error fallback)');
-      exit(0);
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${tr(context, 'errorSleepCycle')}: $e')),
+        );
+      }
+    } finally {
+      fakeProgressTimer.cancel();
+      if (mounted) {
+        setState(() {
+          _isProcessingSleep = false;
+        });
+      }
     }
   }
 
