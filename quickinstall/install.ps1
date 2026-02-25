@@ -10,7 +10,7 @@ if (!(Test-Path $installDir)) {
 Set-Location $installDir
 
 # 2. Download the App (Your .exe and Flutter files)
-$appUrl = "https://github.com/tu-usuario/anima/releases/latest/download/anima-windows.zip"
+$appUrl = "https://github.com/Blue8x/Anima/releases/latest/download/anima-windows.zip"
 $zipPath = "$installDir\anima.zip"
 
 Write-Host "`n[1/3] Downloading the application core..." -ForegroundColor Yellow
