@@ -31,7 +31,7 @@
 - [x] Sleep cycle consolidation JSON.
 - [x] Profile consolidation in `profile_traits`.
 - [x] Persisted language (`app_language`) and LLM steering.
-- [x] Multilingual onboarding with extended selector.
+- [x] Multilingual onboarding/settings with 7-language selector and instant global locale updates.
 
 ## Phase 6 — Streaming + Reliability (Completed)
 

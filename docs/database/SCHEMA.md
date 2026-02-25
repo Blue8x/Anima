@@ -27,6 +27,8 @@ Associates each message with its embedding for semantic retrieval.
 CREATE TABLE IF NOT EXISTS memories (
     message_id INTEGER PRIMARY KEY,
     embedding BLOB NOT NULL,
+    memory_type TEXT NOT NULL DEFAULT 'episodic' CHECK(memory_type IN ('semantic','episodic')),
+    timestamp INTEGER NOT NULL DEFAULT (strftime('%s','now')),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
 );
@@ -66,18 +68,21 @@ CREATE TABLE IF NOT EXISTS profile_traits (
 ```sql
 CREATE INDEX IF NOT EXISTS idx_profile_traits_category ON profile_traits(category);
 CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at);
+CREATE INDEX IF NOT EXISTS idx_memories_type_timestamp ON memories(memory_type, timestamp DESC);
 ```
 
 ## Important Operations
 
 ### Factory reset
 
-Deletes cognitive/config state in a transaction:
+Deletes local cognitive/config/chat state in a transaction:
 
 ```sql
+DELETE FROM messages;
 DELETE FROM memories;
 DELETE FROM profile_traits;
 DELETE FROM config;
+DELETE FROM sqlite_sequence WHERE name = 'messages';
 ```
 
 ### Database export

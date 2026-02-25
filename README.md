@@ -29,7 +29,7 @@ Its goal is not only to answer messages, but to build long-term personal continu
 - **Disciplined Privacy:** Zero cloud connections. Your data never leaves your hard drive.
 - **Sleep Cycle Consolidation:** Anima processes conversations while "sleeping" to extract traits into a persistent profile.
 - **Photographic Memory (RAG):** Anima retrieves relevant past context using local vector embeddings.
-- **Native Polyglot:** Supports 20 languages (EN, ES, CH, AR, RU, JP, DE, FR, HI, PT, BN, UR, ID, KO, VI, IT, TR, TA, TH, PL).
+- **Native Polyglot:** Supports 7 primary local languages with instant global switching (EN, ES, DE, RU, JP, ZH, AR).
 - **Tabula Rasa:** Double-confirmation panic button for full local reset.
 
 ---
@@ -99,7 +99,7 @@ Anima combines a Flutter app for premium dark UI with a Rust core for local cogn
 1. User sends a message.
 2. Rust stores the message and generates an embedding.
 3. Similar memories are retrieved via cosine similarity.
-4. Prompt is built with context + profile + selected language.
+4. Prompt is built with context + profile + language rules.
 5. Model generates a response (sync or streaming).
 6. Final response and derived memory are persisted locally.
 
@@ -110,7 +110,8 @@ Anima combines a Flutter app for premium dark UI with a Rust core for local cogn
 - Token-by-token local chat streaming.
 - Persistent history + semantic memory retrieval (RAG).
 - Sleep Cycle consolidation into `profile_traits`.
-- Advanced onboarding with wheel + more-language menu.
+- Advanced onboarding with wheel-based selector for 7 core languages.
+- Global locale updates are instant across all screens.
 - Premium dark UX across core screens.
 - Full factory reset (double confirmation).
 - Brain export and database export capabilities.

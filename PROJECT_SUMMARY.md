@@ -4,7 +4,7 @@
 
 **Anima** is a local AI companion focused on personal continuity: conversation + memory + cognitive consolidation. The system runs on Flutter + Rust, with inference and persistence on the user’s device.
 
-The product is already in a strong functional V1 state: streaming chat, semantic memory, cognitive profile, advanced i18n, premium UX, and recovery controls.
+The product is already in a strong functional V1 state: streaming chat, semantic memory, cognitive profile, robust local i18n, premium UX, and recovery controls.
 
 ## Product Objective
 
@@ -29,6 +29,7 @@ Anima is designed to:
 - Semantic retrieval through cosine similarity.
 - Sleep cycle to consolidate raw memories into traits.
 - Prompt steering based on persisted language.
+- Local embedded translation dictionary for 7 primary languages (EN, ES, DE, RU, JP, ZH, AR).
 - DB export and transactional factory reset.
 
 ### 2) API and Bridge (flutter_rust_bridge)
@@ -38,11 +39,11 @@ Anima is designed to:
 
 ### 3) Flutter Frontend
 
-- Multi-step onboarding with wheel-based language selector + extra menu.
+- Multi-step onboarding with wheel-based language selector (7 core languages).
 - Home chat with streaming and final-response persistence.
 - Premium drawer/menus with microinteractions.
 - Settings, Memory, and Brain screens with coherent dark style.
-- Global i18n with code normalization and robust fallback.
+- Global i18n with instant app-wide locale rebuild and local fallback.
 
 ## Delivered Key Capabilities
 

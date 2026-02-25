@@ -24,7 +24,7 @@ Everything runs locally using Flutter (UI) + Rust (AI/data core).
 
 - `screens/`: onboarding, home, memory, settings, brain.
 - `services/anima_service.dart`: FRB call layer.
-- `services/translation_service.dart`: i18n and language normalization.
+- `services/translation_service.dart`: local i18n dictionary, language normalization, and global locale state.
 - `widgets/`: chat bubbles, message input.
 
 ### Backend (`frontend/rust/src`)
@@ -49,7 +49,7 @@ The current database uses 4 main tables:
 2. It is stored in `messages`.
 3. Embedding is generated.
 4. Similar memories are retrieved from `memories` using cosine similarity.
-5. Context + profile + language are assembled.
+5. Context + profile + language rules are assembled.
 6. LLM responds (sync or stream).
 7. Response and related memory are persisted.
 
@@ -62,9 +62,10 @@ The current database uses 4 main tables:
 
 ### C. Language Persistence
 
-1. User selects language in onboarding.
+1. User selects language in onboarding or settings.
 2. It is saved in `config` (`app_language`).
-3. UI and LLM prompt are aligned to that persisted language.
+3. UI locale rebuilds instantly via global state.
+4. LLM prompt stays aligned with persisted language and latest message mirroring rules.
 
 ## 6) Runtime Architecture
 

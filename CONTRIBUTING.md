@@ -17,9 +17,9 @@ Thank you for your interest in contributing to Anima! We welcome contributions f
 ### Backend (Rust)
 
 ```bash
-cd backend
+cd frontend/rust
+cargo check
 cargo build
-cargo test
 ```
 
 ### Frontend (Flutter)
@@ -40,7 +40,7 @@ flutter test
 
 ### Flutter/Dart
 - Use `dart format` for formatting
-- Use `dart analyze` for linting
+- Use `flutter analyze` for linting
 - Follow Effective Dart guidelines
 - Write tests for new functionality
 

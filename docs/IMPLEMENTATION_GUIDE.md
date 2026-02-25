@@ -84,9 +84,9 @@ frontend/
 ### Add a Translation
 
 1. Edit `frontend/lib/services/translation_service.dart`.
-2. Add keys for each language.
-3. Normalize code/aliases if it is a new language.
-4. Verify fallback (`ES` and legacy keys).
+2. Add the key in `AppTranslations.values` for all 7 supported languages: `EN`, `ES`, `DE`, `RU`, `JP`, `ZH`, `AR`.
+3. If needed, update language normalization aliases.
+4. Verify fallback to `EN`.
 
 ## 7) Recommended Quick QA
 
@@ -100,10 +100,11 @@ cargo check
 ```
 
 Minimum manual flows:
-- Onboarding (main language + `more`).
+- Onboarding (7-language selector).
 - Chat streaming + final persistence.
 - Sleep cycle.
 - Factory reset.
+- Instant language switch from onboarding and settings.
 
 ## 8) Release Checklist (Summary)
 

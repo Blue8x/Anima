@@ -40,6 +40,7 @@ await initApp(chatModelPath: 'models/anima_v1.gguf', embeddingModelPath: 'models
 ### Memory
 
 - `get_all_memories() -> Vec<MemoryItem>`
+- `search_memories(query: String) -> Result<Vec<MemoryItem>, String>`
 - `delete_memory(id: i64) -> bool`
 
 ### Profile / Cognitive
@@ -87,7 +88,7 @@ await initApp(chatModelPath: 'models/anima_v1.gguf', embeddingModelPath: 'models
 
 - `send_message_stream` emits chunks; the UI should concatenate tokens and persist the final result (`save_assistant_message`).
 - Persisted language (`app_language`) affects both UI and backend prompt steering.
-- `factory_reset` deletes `memories`, `profile_traits`, and `config`.
+- `factory_reset` clears `messages`, `memories`, `profile_traits`, and `config`, and resets message autoincrement state.
 
 ---
 
