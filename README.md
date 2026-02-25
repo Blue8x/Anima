@@ -26,7 +26,7 @@ https://my-anima.com
 
 Its goal is not only to answer messages, but to build long-term personal continuity through an advanced cognitive architecture. Core principle: **your context and identity stay local.**
 
-- **Paranoid Privacy:** Zero cloud connections. Your data never leaves your hard drive.
+- **Disciplined Privacy:** Zero cloud connections. Your data never leaves your hard drive.
 - **Sleep Cycle Consolidation:** Anima processes conversations while "sleeping" to extract traits into a persistent profile.
 - **Photographic Memory (RAG):** Anima retrieves relevant past context using local vector embeddings.
 - **Native Polyglot:** Supports 20 languages (EN, ES, CH, AR, RU, JP, DE, FR, HI, PT, BN, UR, ID, KO, VI, IT, TR, TA, TH, PL).
@@ -219,5 +219,5 @@ MIT
 ---
 
 <div align="center">
-<i>Built with paranoia, privacy, and Rust.</i>
+<i>Built with disciplina, privacy, and Rust.</i>
 </div>
