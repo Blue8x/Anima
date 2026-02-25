@@ -2,13 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'brain_screen.dart';
-import 'memory_browser_screen.dart';
-import 'settings_screen.dart';
 import '../services/anima_service.dart';
 import '../services/translation_service.dart';
 import '../src/rust/db.dart';
 import '../widgets/chat_bubble.dart';
+import '../widgets/main_drawer.dart';
 import '../widgets/message_input.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -25,8 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isHistoryExpanded = false;
   bool isTyping = false;
   bool _hasRequestedProactiveGreeting = false;
-  String? _hoveredDrawerItem;
-  bool _isCloseDrawerHovered = false;
   bool _isOpenDrawerHovered = false;
 
   @override
@@ -209,80 +205,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Widget _buildPremiumDrawerItem({
-    required String id,
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool selected = false,
-  }) {
-    final hovered = _hoveredDrawerItem == id;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      child: MouseRegion(
-        onEnter: (_) {
-          setState(() {
-            _hoveredDrawerItem = id;
-          });
-        },
-        onExit: (_) {
-          setState(() {
-            if (_hoveredDrawerItem == id) {
-              _hoveredDrawerItem = null;
-            }
-          });
-        },
-        child: AnimatedSlide(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          offset: hovered ? const Offset(0.015, 0) : Offset.zero,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            decoration: BoxDecoration(
-              color: selected
-                  ? Theme.of(context).colorScheme.primary.withAlpha(24)
-                  : hovered
-                      ? Colors.white.withAlpha(10)
-                      : Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: selected
-                    ? Theme.of(context).colorScheme.primary.withAlpha(65)
-                    : hovered
-                        ? Colors.white.withAlpha(24)
-                        : Colors.transparent,
-              ),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
-              child: ListTile(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                minLeadingWidth: 24,
-                leading: Icon(
-                  icon,
-                  color: selected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurface.withAlpha(220),
-                ),
-                title: Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                onTap: onTap,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final messagesToRender = _isHistoryExpanded
@@ -335,19 +257,11 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withAlpha(9),
-                border: Border.all(color: Colors.white.withAlpha(24)),
-              ),
-              child: Image.asset(
-                'assets/logo.png',
-                fit: BoxFit.contain,
-              ),
+            Image.asset(
+              'assets/logo.png',
+              width: 44,
+              height: 44,
+              fit: BoxFit.contain,
             ),
             const SizedBox(width: 9),
             const Text(
@@ -358,150 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
       ),
-      drawer: Drawer(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF09090B), Color(0xFF111025), Color(0xFF1D1B45)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                  DrawerHeader(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Theme.of(context).colorScheme.primary.withAlpha(120),
-                          Theme.of(context).colorScheme.primary.withAlpha(60),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: Colors.black.withAlpha(24),
-                          border: Border.all(color: Colors.white.withAlpha(22)),
-                      ),
-                      child: Center(
-                        child: Image.asset(
-                          'assets/logo.png',
-                          height: 82,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                  ),
-                  _buildPremiumDrawerItem(
-                    id: 'chat',
-                    icon: Icons.chat_bubble_outline,
-                    title: tr(context, 'chat'),
-                    selected: true,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  _buildPremiumDrawerItem(
-                    id: 'memory',
-                    icon: Icons.memory_outlined,
-                    title: tr(context, 'memoryExplorer'),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const MemoryBrowserScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildPremiumDrawerItem(
-                    id: 'settings',
-                    icon: Icons.tune,
-                    title: tr(context, 'commandCenter'),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildPremiumDrawerItem(
-                    id: 'brain',
-                    icon: Icons.face_retouching_natural,
-                    title: tr(context, 'digitalBrain'),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const BrainScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  ],
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 8, bottom: 8),
-                  child: MouseRegion(
-                    onEnter: (_) {
-                      setState(() {
-                        _isCloseDrawerHovered = true;
-                      });
-                    },
-                    onExit: (_) {
-                      setState(() {
-                        _isCloseDrawerHovered = false;
-                      });
-                    },
-                    child: AnimatedScale(
-                      duration: const Duration(milliseconds: 170),
-                      curve: Curves.easeOutCubic,
-                      scale: _isCloseDrawerHovered ? 1.06 : 1.0,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 170),
-                        curve: Curves.easeOutCubic,
-                        decoration: BoxDecoration(
-                          color: _isCloseDrawerHovered
-                              ? Colors.white.withAlpha(12)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: _isCloseDrawerHovered
-                                ? Colors.white.withAlpha(24)
-                                : Colors.transparent,
-                          ),
-                        ),
-                        child: IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          tooltip: tr(context, 'closeMenu'),
-                          icon: Icon(
-                            Icons.arrow_back_ios_new,
-                            size: 18,
-                            color:
-                                Theme.of(context).colorScheme.onSurface.withAlpha(180),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      drawer: const MainDrawer(currentSection: MainDrawerSection.chat),
       body: Container(
         color: Theme.of(context).scaffoldBackgroundColor,
         child: Column(
@@ -552,8 +323,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Image.asset(
                               'assets/logo.png',
-                              height: 52,
-                              width: 52,
+                              height: 180,
+                              width: 180,
                               fit: BoxFit.contain,
                             ),
                             const SizedBox(height: 14),

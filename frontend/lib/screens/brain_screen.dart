@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../services/anima_service.dart';
 import '../services/translation_service.dart';
 import '../src/rust/db.dart';
+import '../widgets/main_drawer.dart';
 
 class BrainScreen extends StatefulWidget {
   const BrainScreen({super.key});
@@ -19,7 +20,6 @@ class _BrainScreenState extends State<BrainScreen> {
   Map<String, List<ProfileTrait>> _groupedTraits = {};
   bool _isLoading = true;
   bool _isProcessingSleep = false;
-  bool _isBackHovered = false;
   bool _isResetHovered = false;
 
   Widget _buildAnimatedAppBarIconButton({
@@ -304,15 +304,14 @@ class _BrainScreenState extends State<BrainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: _buildAnimatedAppBarIconButton(
-          icon: Icons.arrow_back_ios_new,
-          tooltip: tr(context, 'back'),
-          onPressed: () => Navigator.of(context).maybePop(),
-          hovered: _isBackHovered,
-          onHoverChanged: (value) {
-            setState(() {
-              _isBackHovered = value;
-            });
+        automaticallyImplyLeading: false,
+        leading: Builder(
+          builder: (context) {
+            return IconButton(
+              tooltip: tr(context, 'openMenu'),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: const Icon(Icons.menu),
+            );
           },
         ),
         title: const Text('Cerebro Digital'),
@@ -376,6 +375,7 @@ class _BrainScreenState extends State<BrainScreen> {
         icon: const Icon(Icons.bedtime),
         label: const Text('Dar las buenas noches (Procesar y Apagar)'),
       ),
+      drawer: const MainDrawer(currentSection: MainDrawerSection.brain),
     );
   }
 }

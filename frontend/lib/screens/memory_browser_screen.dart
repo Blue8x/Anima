@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/anima_service.dart';
 import '../services/translation_service.dart';
 import '../src/rust/db.dart';
+import '../widgets/main_drawer.dart';
 
 class MemoryBrowserScreen extends StatefulWidget {
   const MemoryBrowserScreen({super.key});
@@ -15,45 +16,6 @@ class MemoryBrowserScreen extends StatefulWidget {
 class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
   List<MemoryItem> _memories = [];
   bool _isLoading = true;
-  bool _isBackHovered = false;
-
-  Widget _buildAnimatedAppBarBackButton() {
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() {
-          _isBackHovered = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          _isBackHovered = false;
-        });
-      },
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 170),
-        curve: Curves.easeOutCubic,
-        scale: _isBackHovered ? 1.06 : 1.0,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 170),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: _isBackHovered ? Colors.white.withAlpha(12) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: _isBackHovered
-                  ? Colors.white.withAlpha(24)
-                  : Colors.transparent,
-            ),
-          ),
-          child: IconButton(
-            tooltip: tr(context, 'back'),
-            onPressed: () => Navigator.of(context).maybePop(),
-            icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          ),
-        ),
-      ),
-    );
-  }
 
   @override
   void initState() {
@@ -118,8 +80,18 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const MainDrawer(currentSection: MainDrawerSection.memory),
       appBar: AppBar(
-        leading: _buildAnimatedAppBarBackButton(),
+        automaticallyImplyLeading: false,
+        leading: Builder(
+          builder: (context) {
+            return IconButton(
+              tooltip: tr(context, 'openMenu'),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: const Icon(Icons.menu),
+            );
+          },
+        ),
         title: const Text('Memorias'),
       ),
       body: Container(

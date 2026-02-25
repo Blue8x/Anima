@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../services/anima_service.dart';
 import '../services/translation_service.dart';
+import '../widgets/main_drawer.dart';
 import 'onboarding_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -19,7 +20,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = true;
   bool _isExporting = false;
   bool _isFactoryResetting = false;
-  bool _isBackHovered = false;
 
   String _userName = '';
   String _selectedLanguage = 'ES';
@@ -350,51 +350,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildAnimatedBackButton() {
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() {
-          _isBackHovered = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          _isBackHovered = false;
-        });
-      },
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 170),
-        curve: Curves.easeOutCubic,
-        scale: _isBackHovered ? 1.06 : 1.0,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 170),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: _isBackHovered ? Colors.white.withAlpha(12) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: _isBackHovered ? Colors.white.withAlpha(24) : Colors.transparent,
-            ),
-          ),
-          child: IconButton(
-            tooltip: tr(context, 'back'),
-            onPressed: () => Navigator.of(context).maybePop(),
-            icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF09090B),
+      drawer: const MainDrawer(currentSection: MainDrawerSection.settings),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: _buildAnimatedBackButton(),
+        automaticallyImplyLeading: false,
+        leading: Builder(
+          builder: (context) {
+            return IconButton(
+              tooltip: tr(context, 'openMenu'),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: const Icon(Icons.menu),
+            );
+          },
+        ),
         title: const Text('Ajustes'),
       ),
       body: _isLoading
