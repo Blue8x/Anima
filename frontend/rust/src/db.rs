@@ -1,3 +1,4 @@
+use chrono::Utc;
 use rusqlite::{params, Connection, Result};
 use std::cmp::Ordering;
 use std::path::Path;
@@ -26,6 +27,8 @@ pub struct MemoryMatch {
     pub content: String,
     pub similarity: f32,
     pub timestamp: String,
+    pub memory_type: String,
+    pub memory_unix_timestamp: i64,
 }
 
 #[derive(Debug, Clone)]
@@ -55,13 +58,23 @@ pub fn insert_message(role: &str, content: &str) -> Result<i64> {
     Ok(conn.last_insert_rowid())
 }
 
-pub fn insert_memory(message_id: i64, embedding: &[f32]) -> Result<()> {
+pub fn current_unix_timestamp() -> i64 {
+    Utc::now().timestamp()
+}
+
+pub fn insert_memory(
+    message_id: i64,
+    embedding: &[f32],
+    memory_type: &str,
+    unix_timestamp: i64,
+) -> Result<()> {
     let conn = open_connection()?;
     let embedding_blob = f32_slice_to_blob(embedding);
+    let normalized_type = normalize_memory_type(memory_type);
 
     conn.execute(
-        "INSERT OR REPLACE INTO memories (message_id, embedding) VALUES (?1, ?2)",
-        params![message_id, embedding_blob],
+        "INSERT OR REPLACE INTO memories (message_id, embedding, memory_type, timestamp) VALUES (?1, ?2, ?3, ?4)",
+        params![message_id, embedding_blob, normalized_type, unix_timestamp],
     )?;
 
     Ok(())
@@ -78,7 +91,7 @@ pub fn find_top_similar_memories(
 
     let conn = open_connection()?;
     let mut statement = conn.prepare(
-        "SELECT m.message_id, msg.role, msg.content, msg.timestamp, m.embedding
+        "SELECT m.message_id, msg.role, msg.content, msg.timestamp, m.embedding, m.memory_type, m.timestamp
          FROM memories m
          JOIN messages msg ON msg.id = m.message_id",
     )?;
@@ -93,12 +106,15 @@ pub fn find_top_similar_memories(
             row.get::<_, String>(2)?,
             row.get::<_, String>(3)?,
             embedding,
+            row.get::<_, String>(5)?,
+            row.get::<_, i64>(6)?,
         ))
     })?;
 
     let mut scored = Vec::<MemoryMatch>::new();
     for row in rows {
-        let (message_id, role, content, timestamp, candidate_embedding) = row?;
+        let (message_id, role, content, timestamp, candidate_embedding, memory_type, memory_unix_timestamp) =
+            row?;
 
         if exclude_message_id.is_some_and(|excluded| excluded == message_id) {
             continue;
@@ -112,6 +128,8 @@ pub fn find_top_similar_memories(
                 content,
                 similarity,
                 timestamp,
+                memory_type,
+                memory_unix_timestamp,
             });
         }
     }
@@ -178,6 +196,32 @@ pub fn get_all_memories() -> Result<Vec<MemoryItem>> {
     )?;
 
     let rows = statement.query_map([], |row| {
+        Ok(MemoryItem {
+            id: row.get(0)?,
+            content: row.get(1)?,
+            created_at: row.get(2)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+pub fn search_memories(query: &str) -> Result<Vec<MemoryItem>> {
+    let conn = open_connection()?;
+    let normalized_query = query.trim();
+
+    let mut statement = conn.prepare(
+        "SELECT msg.id, msg.content, mem.created_at
+         FROM memories mem
+         JOIN messages msg ON msg.id = mem.message_id
+         WHERE (?1 = '')
+            OR msg.content LIKE '%' || ?1 || '%'
+            OR mem.created_at LIKE '%' || ?1 || '%'
+            OR CAST(mem.timestamp AS TEXT) LIKE '%' || ?1 || '%'
+         ORDER BY mem.timestamp DESC, mem.message_id DESC",
+    )?;
+
+    let rows = statement.query_map(params![normalized_query], |row| {
         Ok(MemoryItem {
             id: row.get(0)?,
             content: row.get(1)?,
@@ -395,9 +439,41 @@ fn init_schema(conn: &Connection) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS memories (
             message_id INTEGER PRIMARY KEY,
             embedding BLOB NOT NULL,
+            memory_type TEXT NOT NULL DEFAULT 'episodic' CHECK(memory_type IN ('semantic','episodic')),
+            timestamp INTEGER NOT NULL DEFAULT (strftime('%s','now')),
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
         )",
+        [],
+    )?;
+
+    if !table_has_column(conn, "memories", "memory_type")? {
+        conn.execute(
+            "ALTER TABLE memories ADD COLUMN memory_type TEXT NOT NULL DEFAULT 'episodic' CHECK(memory_type IN ('semantic','episodic'))",
+            [],
+        )?;
+    }
+
+    if !table_has_column(conn, "memories", "timestamp")? {
+        conn.execute(
+            "ALTER TABLE memories ADD COLUMN timestamp INTEGER NOT NULL DEFAULT (strftime('%s','now'))",
+            [],
+        )?;
+    }
+
+    conn.execute(
+        "UPDATE memories
+         SET memory_type = CASE
+             WHEN lower(trim(memory_type)) = 'semantic' THEN 'semantic'
+             ELSE 'episodic'
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "UPDATE memories
+         SET timestamp = strftime('%s', COALESCE(created_at, CURRENT_TIMESTAMP))
+         WHERE timestamp IS NULL OR timestamp <= 0",
         [],
     )?;
 
@@ -430,6 +506,11 @@ fn init_schema(conn: &Connection) -> Result<()> {
     )?;
 
     conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_memories_type_timestamp ON memories(memory_type, timestamp DESC)",
+        [],
+    )?;
+
+    conn.execute(
         "INSERT OR IGNORE INTO config (key, value) VALUES (?1, ?2)",
         params![TEMPERATURE_KEY, DEFAULT_TEMPERATURE.to_string()],
     )?;
@@ -444,6 +525,29 @@ fn parse_temperature(value: &str) -> Option<f32> {
     } else {
         None
     }
+}
+
+fn normalize_memory_type(memory_type: &str) -> &'static str {
+    if memory_type.trim().eq_ignore_ascii_case("semantic") {
+        "semantic"
+    } else {
+        "episodic"
+    }
+}
+
+fn table_has_column(conn: &Connection, table: &str, column: &str) -> Result<bool> {
+    let pragma = format!("PRAGMA table_info({table})");
+    let mut statement = conn.prepare(&pragma)?;
+    let mut rows = statement.query([])?;
+
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(1)?;
+        if name.eq_ignore_ascii_case(column) {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
 
 fn f32_slice_to_blob(vector: &[f32]) -> Vec<u8> {

@@ -17,10 +17,12 @@ class BrainScreen extends StatefulWidget {
 }
 
 class _BrainScreenState extends State<BrainScreen> {
-  Map<String, List<ProfileTrait>> _groupedTraits = {};
+  final TextEditingController _searchController = TextEditingController();
+  List<MemoryItem> displayedMemories = [];
   bool _isLoading = true;
   bool _isProcessingSleep = false;
   bool _isResetHovered = false;
+  Timer? _searchDebounce;
 
   Widget _buildAnimatedAppBarIconButton({
     required IconData icon,
@@ -59,32 +61,33 @@ class _BrainScreenState extends State<BrainScreen> {
   @override
   void initState() {
     super.initState();
-    _loadTraits();
+    _runMemorySearch('');
   }
 
-  Future<void> _loadTraits() async {
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runMemorySearch(String query) async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
 
     try {
       final animaService = context.read<AnimaService>();
-      final traits = await animaService.getProfileTraits();
-      final grouped = <String, List<ProfileTrait>>{};
-
-      for (final trait in traits) {
-        grouped.putIfAbsent(trait.category, () => []);
-        grouped[trait.category]!.add(trait);
-      }
-
+      final memories = await animaService.searchMemories(query);
       if (!mounted) return;
       setState(() {
-        _groupedTraits = grouped;
+        displayedMemories = memories;
       });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error cargando cerebro digital: $e')),
+        SnackBar(content: Text('Error buscando recuerdos: $e')),
       );
     } finally {
       if (mounted) {
@@ -95,27 +98,12 @@ class _BrainScreenState extends State<BrainScreen> {
     }
   }
 
-  IconData _iconForCategory(String category) {
-    switch (category) {
-      case 'Identidad':
-        return Icons.badge_outlined;
-      case 'Metas':
-        return Icons.flag_outlined;
-      case 'Gustos':
-        return Icons.favorite_border;
-      case 'Alimentación':
-        return Icons.restaurant_outlined;
-      case 'Preocupaciones':
-        return Icons.psychology_alt_outlined;
-      case 'Economía':
-        return Icons.savings_outlined;
-      case 'Relaciones':
-        return Icons.people_outline;
-      case 'Otros':
-        return Icons.category_outlined;
-      default:
-        return Icons.bubble_chart_outlined;
-    }
+  void _onSearchChanged(String value) {
+    setState(() {});
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      _runMemorySearch(value);
+    });
   }
 
   Future<void> _confirmFactoryReset() async {
@@ -148,9 +136,6 @@ class _BrainScreenState extends State<BrainScreen> {
       if (!mounted) return;
 
       if (cleared) {
-        setState(() {
-          _groupedTraits = {};
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Evolución cognitiva borrada')),
         );
@@ -328,6 +313,39 @@ class _BrainScreenState extends State<BrainScreen> {
             },
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(62),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF18181B),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withAlpha(18)),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: tr(context, 'searchMemoriesHint'),
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchController.text.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            _runMemorySearch('');
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.clear),
+                        ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -341,11 +359,11 @@ class _BrainScreenState extends State<BrainScreen> {
           children: [
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _groupedTraits.isEmpty
-                    ? const Center(child: Text('No hay nodos cognitivos todavía'))
+                : displayedMemories.isEmpty
+                    ? const Center(child: Text('No hay recuerdos para esta búsqueda'))
                     : ListView(
                         padding: const EdgeInsets.all(12),
-                        children: _groupedTraits.entries.map((entry) {
+                        children: displayedMemories.map((memory) {
                           return Container(
                             margin: const EdgeInsets.symmetric(vertical: 6),
                             decoration: BoxDecoration(
@@ -353,16 +371,10 @@ class _BrainScreenState extends State<BrainScreen> {
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: Colors.white.withAlpha(16)),
                             ),
-                            child: ExpansionTile(
-                              leading: Icon(_iconForCategory(entry.key)),
-                              title: Text(entry.key),
-                              children: entry.value
-                                  .map(
-                                    (trait) => ListTile(
-                                      title: Text(trait.content),
-                                    ),
-                                  )
-                                  .toList(),
+                            child: ListTile(
+                              leading: const Icon(Icons.auto_awesome),
+                              title: Text(memory.content),
+                              subtitle: Text(memory.createdAt),
                             ),
                           );
                         }).toList(),

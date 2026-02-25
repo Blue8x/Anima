@@ -1,5 +1,6 @@
 use crate::ai;
 use crate::db;
+use chrono::{Local, TimeZone};
 pub use crate::db::ChatMessage;
 pub use crate::db::MemoryItem;
 pub use crate::db::ProfileTrait;
@@ -144,6 +145,11 @@ pub fn get_all_memories() -> Vec<MemoryItem> {
             Vec::new()
         }
     }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn search_memories(query: String) -> Result<Vec<MemoryItem>, String> {
+    db::search_memories(&query).map_err(|error| format!("Memory search failed: {error}"))
 }
 
 #[flutter_rust_bridge::frb]
@@ -370,7 +376,12 @@ fn prepare_message_context(message: &str) -> Result<(i64, Vec<String>), String> 
 
     match ai::generate_embedding(message) {
         Ok(embedding) if !embedding.is_empty() => {
-            db::insert_memory(user_message_id, &embedding)
+            db::insert_memory(
+                user_message_id,
+                &embedding,
+                "episodic",
+                db::current_unix_timestamp(),
+            )
                 .map_err(|error| format!("Error de DB al guardar embedding: {error}"))?;
 
             let matches = db::find_top_similar_memories(&embedding, 3, Some(user_message_id))
@@ -378,7 +389,19 @@ fn prepare_message_context(message: &str) -> Result<(i64, Vec<String>), String> 
 
             relevant_context = matches
                 .into_iter()
-                .map(|memory| format!("[{}] {}", memory.role, memory.content))
+                .map(|memory| {
+                    if memory.memory_type == "semantic" {
+                        format!("- {}", memory.content)
+                    } else {
+                        let dt = Local
+                            .timestamp_opt(memory.memory_unix_timestamp, 0)
+                            .single();
+                        let date_label = dt
+                            .map(|value| value.format("%Y-%m-%d").to_string())
+                            .unwrap_or_else(|| "unknown-date".to_string());
+                        format!("- [{}]: {}", date_label, memory.content)
+                    }
+                })
                 .collect();
         }
         Ok(_) => {}

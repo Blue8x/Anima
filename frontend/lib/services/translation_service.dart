@@ -512,6 +512,12 @@ class TranslationService extends ChangeNotifier {
       'Árabe': 'إعادة ضبط معرفية للمصنع',
       'Ruso': 'Когнитивный сброс до заводских настроек',
     },
+    'searchMemoriesHint': {
+      'EN': 'Search words, dates, or memories...',
+      'ES': 'Buscar palabras, fechas o recuerdos...',
+      'Inglés': 'Search words, dates, or memories...',
+      'Español': 'Buscar palabras, fechas o recuerdos...',
+    },
   };
 
   String tr(String key) {

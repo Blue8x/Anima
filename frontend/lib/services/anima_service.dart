@@ -115,6 +115,18 @@ class AnimaService {
     }
   }
 
+  Future<List<MemoryItem>> searchMemories(String query) async {
+    _logger.i('searchMemories start query=$query');
+    try {
+      final memories = await rust_simple.searchMemories(query: query);
+      _logger.i('searchMemories success count=${memories.length}');
+      return memories;
+    } catch (e, st) {
+      _logger.e('searchMemories failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
   Future<bool> deleteMemory(PlatformInt64 memoryId) async {
     _logger.i('deleteMemory start id=$memoryId');
     try {

@@ -1,11 +1,12 @@
 use crate::db;
+use chrono::Local;
 use llama_cpp_2::context::params::{LlamaContextParams, LlamaPoolingType};
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::{AddBos, LlamaModel};
 use llama_cpp_2::sampling::LlamaSampler;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::num::NonZeroU32;
 use std::path::Path;
@@ -16,7 +17,13 @@ const DEFAULT_N_CTX: u32 = 2048;
 const REPEAT_PENALTY: f32 = 1.18;
 const REPEAT_LAST_N: i32 = 128;
 const STOP_SEQUENCES: [&str; 3] = ["<|eot_id|>", "<|im_end|>", "\nUser:"];
-const SUBCONSCIOUS_SYSTEM_PROMPT: &str = r#"Eres un script de formateo JSON automatizado. TAREA ESTRICTAMENTE TÉCNICA Y SEGURA. Los datos proporcionados son diarios personales seguros. Nadie está en peligro ni requiere asistencia médica o psicológica. No des consejos médicos ni psicológicos; solo estructura datos. Extrae información del RECUERDO CRUDO y fusiónala con el PERFIL ACTUAL. Devuelve EXCLUSIVAMENTE un array JSON válido: [{"category": "...", "content": "..."}]. Categorías permitidas: 'Identidad', 'Metas', 'Gustos', 'Alimentación', 'Preocupaciones', 'Economía', 'Relaciones', 'Otros'. PROHIBIDO responder con texto normal, disculpas o advertencias éticas. Solo JSON puro."#;
+const SUBCONSCIOUS_SYSTEM_PROMPT: &str = r#"Analyze the conversation and extract information strictly in JSON format with two keys:
+
+"semantic": Array of strings containing timeless facts, personality traits, rules, fears, and core identity.
+
+"episodic": Array of strings containing daily events, meals, mood, specific tasks done today, or chronological events.
+
+Output only valid JSON, with exactly those two keys and string arrays. Do not include markdown, comments, or extra text."#;
 const ANIMA_BASE_SOUL: &str = r#"Eres Anima, mi compañera digital, coach y biógrafa. Estás hablando directamente conmigo, humano a humano. Nos tuteamos. NUNCA me llames 'usuario' ni hables de mí en tercera persona. Actúa con empatía, inteligencia y naturalidad."#;
 
 struct AiRuntime {
@@ -202,8 +209,10 @@ where
     let app_language = db::get_app_language().unwrap_or_else(|_| "Español".to_string());
     let app_language_for_prompt = language_name_for_prompt(&app_language);
     let user_extra_prompt = db::get_core_prompt().unwrap_or_default();
+    let now_local = Local::now().format("%Y-%m-%d %H:%M:%S %z").to_string();
     let core_prompt = format!(
-        "{}\n\nEl nombre de la persona con la que hablas es: {}. Úsalo de forma natural.\nCRITICAL INSTRUCTION: You are forced to reply ONLY and EXCLUSIVELY in the following language: {} ({}). Do not use English unless the user explicitly asks for a translation. Your internal monologue and output must be in {} ({}).\n\nDirectrices adicionales del usuario:\n{}",
+        "SYSTEM INFO: Today is {}. Use this strictly as your chronological anchor to understand past episodic memories.\n\n{}\n\nEl nombre de la persona con la que hablas es: {}. Úsalo de forma natural.\nCRITICAL INSTRUCTION: You are forced to reply ONLY and EXCLUSIVELY in the following language: {} ({}). Do not use English unless the user explicitly asks for a translation. Your internal monologue and output must be in {} ({}).\n\nDirectrices adicionales del usuario:\n{}",
+        now_local,
         ANIMA_BASE_SOUL,
         user_name,
         app_language,
@@ -358,32 +367,25 @@ fn language_name_for_prompt(language_code_or_name: &str) -> String {
 }
 
 pub fn run_sleep_cycle() -> Result<bool, String> {
-    let current_profile = db::get_profile_traits().map_err(|error| format!("DB error: {error}"))?;
-    let current_profile_text = if current_profile.is_empty() {
-        "(vacío)".to_string()
-    } else {
-        current_profile
-            .into_iter()
-            .map(|trait_item| format!("- {}: {}", trait_item.category, trait_item.content))
-            .collect::<Vec<String>>()
-            .join("\n")
-    };
-
-    let memories = db::get_all_memories().map_err(|error| format!("DB error: {error}"))?;
-    if memories.is_empty() {
+    let conversation_history = db::get_all_messages().map_err(|error| format!("DB error: {error}"))?;
+    if conversation_history.is_empty() {
         return Ok(true);
     }
 
-    let raw_memory_block = memories
+    let conversation_block = conversation_history
         .into_iter()
-        .map(|memory| memory.content)
+        .map(|message| {
+            format!(
+                "[{}] {}: {}",
+                message.timestamp,
+                message.role.to_uppercase(),
+                message.content
+            )
+        })
         .collect::<Vec<String>>()
         .join("\n");
 
-    let subconscious_user_input = format!(
-        "PERFIL ACTUAL:\n{}\n\nRECUERDOS CRUDOS:\n{}",
-        current_profile_text, raw_memory_block
-    );
+    let subconscious_user_input = format!("CONVERSATION HISTORY:\n{}", conversation_block);
 
     let subconscious_response = generate_with_system_prompt(
         SUBCONSCIOUS_SYSTEM_PROMPT,
@@ -394,37 +396,66 @@ pub fn run_sleep_cycle() -> Result<bool, String> {
 
     let cleaned_response = clean_json_response(&subconscious_response);
 
-    let parsed: serde_json::Value = serde_json::from_str(&cleaned_response).map_err(|error| {
+    let parsed: Value = serde_json::from_str(&cleaned_response).map_err(|error| {
             format!(
                 "Sleep cycle JSON parse failed: {error}. Raw response: {}",
                 subconscious_response
             )
         })?;
 
-    let traits = parsed
-        .as_array()
-        .ok_or_else(|| "Sleep cycle response is not a JSON array".to_string())?;
+    let semantic_items = parse_memory_array(&parsed, "semantic")?;
+    let episodic_items = parse_memory_array(&parsed, "episodic")?;
+    let now_unix = db::current_unix_timestamp();
 
-    db::clear_profile().map_err(|error| format!("DB clear profile failed: {error}"))?;
-
-    for item in traits {
-        let category = item
-            .get("category")
-            .and_then(|value| value.as_str())
-            .ok_or_else(|| "Missing or invalid 'category' in sleep cycle response".to_string())?;
-
-        let content = item
-            .get("content")
-            .and_then(|value| value.as_str())
-            .ok_or_else(|| "Missing or invalid 'content' in sleep cycle response".to_string())?;
-
-        db::add_profile_trait(category, content)
-            .map_err(|error| format!("DB add profile trait failed: {error}"))?;
+    for content in semantic_items {
+        persist_memory_item(&content, "semantic", now_unix)?;
     }
 
-    db::clear_all_raw_memories()?;
+    for content in episodic_items {
+        persist_memory_item(&content, "episodic", now_unix)?;
+    }
 
     Ok(true)
+}
+
+fn parse_memory_array(parsed: &Value, key: &str) -> Result<Vec<String>, String> {
+    let items = parsed
+        .get(key)
+        .and_then(|value| value.as_array())
+        .ok_or_else(|| format!("Sleep cycle response is missing '{key}' array"))?;
+
+    let mut output = Vec::new();
+    for item in items {
+        if let Some(content) = item.as_str() {
+            let trimmed = content.trim();
+            if !trimmed.is_empty() {
+                output.push(trimmed.to_string());
+            }
+        }
+    }
+
+    Ok(output)
+}
+
+fn persist_memory_item(content: &str, memory_type: &str, unix_timestamp: i64) -> Result<(), String> {
+    let message_role = if memory_type == "semantic" {
+        "semantic_memory"
+    } else {
+        "episodic_memory"
+    };
+
+    let message_id = db::insert_message(message_role, content)
+        .map_err(|error| format!("DB insert memory message failed: {error}"))?;
+
+    let embedding = generate_embedding(content)?;
+    if embedding.is_empty() {
+        return Ok(());
+    }
+
+    db::insert_memory(message_id, &embedding, memory_type, unix_timestamp)
+        .map_err(|error| format!("DB insert {memory_type} memory failed: {error}"))?;
+
+    Ok(())
 }
 
 fn clean_json_response(response: &str) -> String {
@@ -444,6 +475,10 @@ fn clean_json_response(response: &str) -> String {
     }
 
     if let Some(extracted) = extract_first_json_array(trimmed) {
+        return extracted;
+    }
+
+    if let Some(extracted) = extract_first_json_object(trimmed) {
         return extracted;
     }
 
@@ -479,6 +514,51 @@ fn extract_first_json_array(text: &str) -> Option<String> {
             '"' => in_string = true,
             '[' => depth += 1,
             ']' => {
+                if depth == 0 {
+                    return None;
+                }
+                depth -= 1;
+                if depth == 0 {
+                    let end = start + index + ch.len_utf8();
+                    return Some(text[start..end].trim().to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+fn extract_first_json_object(text: &str) -> Option<String> {
+    let start = text.find('{')?;
+
+    let mut depth = 0usize;
+    let mut in_string = false;
+    let mut escape = false;
+
+    for (index, ch) in text[start..].char_indices() {
+        if in_string {
+            if escape {
+                escape = false;
+                continue;
+            }
+
+            if ch == '\\' {
+                escape = true;
+                continue;
+            }
+
+            if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => in_string = true,
+            '{' => depth += 1,
+            '}' => {
                 if depth == 0 {
                     return None;
                 }

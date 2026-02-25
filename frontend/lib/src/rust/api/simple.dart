@@ -48,6 +48,9 @@ Future<List<ChatMessage>> getChatHistory() =>
 Future<List<MemoryItem>> getAllMemories() =>
     RustLib.instance.api.crateApiSimpleGetAllMemories();
 
+Future<List<MemoryItem>> searchMemories({required String query}) =>
+    RustLib.instance.api.crateApiSimpleSearchMemories(query: query);
+
 Future<bool> deleteMemory({required PlatformInt64 id}) =>
     RustLib.instance.api.crateApiSimpleDeleteMemory(id: id);
 
