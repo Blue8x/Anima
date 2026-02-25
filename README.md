@@ -1,85 +1,44 @@
-# Anima
+<div align="center">
 
-Anima is a **100% local** AI companion (Rust + Flutter) designed to chat, remember, and evolve with you without relying on cloud services.
+<img src="frontend/assets/logo.png" alt="Anima Logo" width="170"/>
 
-Its goal is not only to answer messages, but to build long-term personal continuity through:
-- contextual memory (RAG),
-- cognitive consolidation (Sleep Cycle),
-- persistent user profile,
-- and full local data control.
+# ­ƒºá Anima
 
-## What is this project?
+**Your Digital Mind. Without the Cloud. Without Chains.**
 
-Anima combines a Flutter app (UX, onboarding, chat, settings) with a Rust core (local inference, semantic memory, consolidation, and SQLite persistence). Frontend and backend communicate through flutter_rust_bridge.
+[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)](https://flutter.dev)
+[![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-Core principle: **your context and identity stay local**.
+Anima is a **100% local** AI companion (Rust + Flutter) designed to chat, remember, and evolve with you without relying on external APIs or cloud services.
 
----
-
-## Current state (V1)
-
-- Local chat with token-by-token streaming.
-- Persistent history and vector memory.
-- Semantic retrieval of relevant context (RAG).
-- Sleep Cycle consolidation into profile_traits.
-- Advanced onboarding with language selector (wheel + more menu).
-- Premium dark UI inspired by the web visual language.
-- Full factory reset (double confirmation).
-- Local database export.
+</div>
 
 ---
 
-## Visual identity
+## Ô£¿ Why Anima?
 
-### Anima.ai (web vision)
+Its goal is not only to answer messages, but to build long-term personal continuity through an advanced cognitive architecture. Core principle: **your context and identity stay local.**
 
-![Anima.ai web preview](frontend/assets/web.png)
-
-### App identity
-
-![Anima app logo](frontend/assets/logo.png)
-
----
-
-## Architecture at a glance
-
-| Layer | Technology |
-|---|---|
-| Frontend | Flutter |
-| Backend | Rust |
-| Bridge | flutter_rust_bridge v2 |
-| Local inference | llama.cpp + GGUF models |
-| Persistence | SQLite |
-
-### Main flow
-
-1. User sends a message.
-2. Rust stores the message and generates an embedding.
-3. Similar memories are retrieved through cosine similarity.
-4. Prompt is built with context + profile + language.
-5. Model generates response (sync or streaming).
-6. Final response and derived memory are persisted.
+- ­ƒøí´©Å **Paranoid Privacy:** Zero cloud connections. Your data never leaves your hard drive.
+- ­ƒºá **Sleep Cycle Consolidation:** Anima processes conversations while "sleeping" to extract traits into a persistent profile.
+- ­ƒô© **Photographic Memory (RAG):** Anima retrieves relevant past context using local vector embeddings.
+- ­ƒîì **Native Polyglot:** Supports 20 languages (EN, ES, CH, AR, RU, JP, DE, FR, HI, PT, BN, UR, ID, KO, VI, IT, TR, TA, TH, PL).
+- ­ƒº¿ **Tabula Rasa:** Double-confirmation panic button for full local reset.
 
 ---
 
-## Languages
+## ­ƒÜÇ Quick Start (For Developers)
 
-Anima supports language selection and normalization in frontend and backend prompt steering.
+### 1. Prerequisites
 
-Currently supported language codes:
-ES, EN, CH, AR, RU, JP, DE, FR, HI, PT, BN, UR, ID, KO, VI, IT, TR, TA, TH, PL.
+Make sure you have:
+- [Flutter SDK](https://docs.flutter.dev/get-started/install)
+- [Rust Toolchain](https://rustup.rs/) (`rustup`, `cargo`)
+- C++ build tools (recommended on Windows for native builds)
 
----
-
-## Requirements
-
-- Flutter SDK
-- Rust toolchain (rustup, cargo)
-- GGUF models in models/
-  - chat model (example: models/anima_v1.gguf)
-  - embedding model (example: models/all-MiniLM-L6-v2.gguf)
-
-Optional (desktop):
+Enable desktop support if needed:
 
 ```bash
 flutter config --enable-windows-desktop
@@ -87,62 +46,163 @@ flutter config --enable-macos-desktop
 flutter config --enable-linux-desktop
 ```
 
----
+### 2. Clone repository
 
-## Run locally
+```bash
+git clone https://github.com/Blue8x/Anima.git
+cd Anima
+```
+
+### 3. Download the Brain (GGUF Models)
+
+Create a `models/` folder in the repository root and place:
+
+1. Chat model at `models/anima_v1.gguf`
+2. Embedding model at `models/all-MiniLM-L6-v2.gguf`
+
+Examples:
+- Chat model: [Dolphin 3.0 Llama 3.1 8B GGUF](https://huggingface.co/bartowski/Dolphin3.0-Llama3.1-8B-GGUF)
+- Embedding model: [all-MiniLM-L6-v2 GGUF](https://huggingface.co/second-state/All-MiniLM-L6-v2-Embedding-GGUF)
+
+### 4. Generate FRB Bindings & Run
 
 ```bash
 cd frontend
 flutter pub get
+flutter_rust_bridge_codegen generate
 flutter run -d windows
 ```
 
-For macOS/Linux, use -d macos or -d linux.
+For macOS/Linux, replace `-d windows` with `-d macos` or `-d linux`.
 
 ---
 
-## Change model
+## ­ƒÅù´©Å Architecture
 
-1. Place your model in models/.
-2. Update paths in frontend/lib/services/anima_service.dart (chatModelPath, embeddingModelPath).
-3. Restart the app.
+Anima combines a Flutter app for premium dark UI with a Rust core for local cognition.
+
+| Layer | Technology |
+|---|---|
+| Frontend | Flutter |
+| Backend | Rust |
+| Bridge | flutter_rust_bridge v2 |
+| Inference | llama.cpp + GGUF |
+| Database | SQLite |
+
+### The Cognitive Loop
+
+1. User sends a message.
+2. Rust stores the message and generates an embedding.
+3. Similar memories are retrieved via cosine similarity.
+4. Prompt is built with context + profile + selected language.
+5. Model generates a response (sync or streaming).
+6. Final response and derived memory are persisted locally.
 
 ---
 
-## Repository structure
+## ­ƒôª Current State (V1)
 
+- Token-by-token local chat streaming.
+- Persistent history + semantic memory retrieval (RAG).
+- Sleep Cycle consolidation into `profile_traits`.
+- Advanced onboarding with wheel + more-language menu.
+- Premium dark UX across core screens.
+- Full factory reset (double confirmation).
+- Brain export and database export capabilities.
+
+---
+
+## ­ƒôÜ Documentation
+
+- Architecture: `docs/ARCHITECTURE.md`
+- FRB API: `docs/API.md`
+- Implementation Guide: `docs/IMPLEMENTATION_GUIDE.md`
+- Roadmap: `docs/ROADMAP.md`
+- DB Schema: `docs/database/SCHEMA.md`
+- Executive Summary: `PROJECT_SUMMARY.md`
+
+---
+
+## ­ƒôª Packaging & Release (Building Installers)
+
+> **Important:** The 5GB GGUF model must **never** be bundled inside installers due to package size limitations. The model should be downloaded **after installation** by the user or through a post-install script.
+
+Use the platform-specific Flutter build command first, then package the generated app artifacts into a native installer.
+
+### 1) Windows (.exe)
+
+- **Base build command:**
+
+```bash
+flutter build windows
 ```
-frontend/
-  lib/
-    screens/
-    services/
-    widgets/
-  rust/
-    src/
-      api/
-      ai.rs
-      db.rs
-docs/
-  API.md
-  ARCHITECTURE.md
-  IMPLEMENTATION_GUIDE.md
-  ROADMAP.md
-  database/SCHEMA.md
+
+- **Recommended packaging tool:** Inno Setup
+- **Packaging instruction:** Point the Inno Setup wizard to `build\windows\x64\runner\Release\` and include the full contents of that directory in the installer.
+
+### 2) macOS (.dmg)
+
+- **Base build command:**
+
+```bash
+flutter build macos
+```
+
+- **Recommended packaging tool:** `create-dmg`
+- **Install via Homebrew:**
+
+```bash
+brew install create-dmg
+```
+
+- **Packaging example:**
+
+```bash
+create-dmg \
+	--volname "Anima Installer" \
+	--window-pos 200 120 \
+	--window-size 800 400 \
+	--icon-size 100 \
+	--icon "Anima.app" 200 190 \
+	--hide-extension "Anima.app" \
+	--app-drop-link 600 185 \
+	"Anima-macOS.dmg" \
+	"build/macos/Build/Products/Release/Anima.app"
+```
+
+### 3) Linux (.deb)
+
+- **Base build command:**
+
+```bash
+flutter build linux
+```
+
+- **Recommended packaging tool:** `flutter_to_debian`
+- **Packaging steps:**
+
+```bash
+dart pub global activate flutter_to_debian
+# Create a debian.yaml file in the root directory
+flutter_to_debian
 ```
 
 ---
 
-## Documentation index
+## ­ƒñØ Contributing
 
-- Architecture: docs/ARCHITECTURE.md
-- FRB API: docs/API.md
-- Implementation guide: docs/IMPLEMENTATION_GUIDE.md
-- Roadmap: docs/ROADMAP.md
-- DB schema: docs/database/SCHEMA.md
-- Executive summary: PROJECT_SUMMARY.md
+If you want to improve the codebase, UX, or cognition pipeline, open an issue or submit a PR.
+
+Follow development updates: [@wouldyou_dev](https://x.com/wouldyou_dev)
 
 ---
 
 ## License
 
 MIT
+
+---
+
+<div align="center">
+<i>Built with paranoia, privacy, and Rust.</i>
+</div>
