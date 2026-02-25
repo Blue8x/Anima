@@ -8,6 +8,7 @@ import '../src/rust/db.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/main_drawer.dart';
 import '../widgets/message_input.dart';
+import '../widgets/starfield_overlay.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -275,13 +276,18 @@ class _HomeScreenState extends State<HomeScreen> {
       drawer: const MainDrawer(currentSection: MainDrawerSection.chat),
       body: Container(
         color: Theme.of(context).scaffoldBackgroundColor,
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
-              child: ListView(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                children: [
+            const Positioned.fill(
+              child: StarfieldOverlay(seed: 1337, starCount: 150),
+            ),
+            Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    children: [
                 if (_historyMessages.isNotEmpty)
                   Align(
                     alignment: Alignment.center,
@@ -366,10 +372,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Center(child: CircularProgressIndicator()),
                   ),
-                ],
-              ),
+                    ],
+                  ),
+                ),
+                MessageInput(onSend: _sendMessage, isLoading: isTyping),
+              ],
             ),
-            MessageInput(onSend: _sendMessage, isLoading: isTyping),
           ],
         ),
       ),

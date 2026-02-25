@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../services/anima_service.dart';
 import '../services/translation_service.dart';
+import '../widgets/starfield_overlay.dart';
 import 'home_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -683,6 +684,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
               ),
+            ),
+            const Positioned.fill(
+              child: StarfieldOverlay(seed: 2026, starCount: 190),
             ),
             Center(
               child: ConstrainedBox(
