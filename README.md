@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="frontend/assets/logo.png" alt="Anima Logo" width="200"/>
+<img src="frontend/assets/anima_logo.png" alt="Anima Logo" width="200"/>
 
 # Anima
 

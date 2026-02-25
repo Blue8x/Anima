@@ -21,6 +21,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final TextEditingController _seedController = TextEditingController();
   final FocusNode _nameFocusNode = FocusNode();
   bool _isSubmitting = false;
+  bool _languageSelectedByUser = false;
   String _selectedLanguage = 'ES';
   int _step = 0;
   String? _hoveredLanguage;
@@ -91,9 +92,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     try {
       final animaService = context.read<AnimaService>();
       final savedLanguage = await animaService.getAppLanguage();
-        final language = TranslationService.normalizeLanguageCode(savedLanguage);
+      final language = TranslationService.normalizeLanguageCode(savedLanguage);
 
       if (!mounted) return;
+      if (_languageSelectedByUser) return;
       setState(() {
         _selectedLanguage = language;
       });
@@ -123,6 +125,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_isSubmitting) return;
 
     setState(() {
+      _languageSelectedByUser = true;
       _selectedLanguage = language;
     });
 

@@ -63,6 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final temperature = await animaService.getTemperature();
 
       if (!mounted) return;
+      context.read<TranslationService>().setLanguage(normalizedLanguage);
       setState(() {
         _userName = userName;
         _selectedLanguage = normalizedLanguage;

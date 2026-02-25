@@ -64,7 +64,7 @@ class MainDrawer extends StatelessWidget {
               decoration: BoxDecoration(border: Border()),
               child: Center(
                 child: Image(
-                  image: AssetImage('assets/logo.png'),
+                  image: AssetImage('assets/anima_logo.png'),
                   height: 120,
                   fit: BoxFit.contain,
                 ),

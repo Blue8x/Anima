@@ -272,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(
-              'assets/logo.png',
+              'assets/anima_logo.png',
               width: 44,
               height: 44,
               fit: BoxFit.contain,
