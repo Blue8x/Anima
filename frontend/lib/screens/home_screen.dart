@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../services/anima_service.dart';
 import '../services/translation_service.dart';
 import '../src/rust/db.dart';
@@ -19,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  StreamSubscription<void>? _factoryResetSubscription;
   List<ChatMessage> _historyMessages = [];
   List<ChatMessage> _sessionMessages = [];
   bool _isHistoryExpanded = false;
@@ -29,6 +31,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _factoryResetSubscription = context.read<AnimaService>().onFactoryReset.listen((_) {
+      if (!mounted) return;
+      setState(() {
+        _historyMessages = [];
+        _sessionMessages = [];
+        _isHistoryExpanded = false;
+        isTyping = false;
+        _hasRequestedProactiveGreeting = false;
+      });
+    });
     _loadHistory();
   }
 
@@ -202,6 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _factoryResetSubscription?.cancel();
     _scrollController.dispose();
     super.dispose();
   }

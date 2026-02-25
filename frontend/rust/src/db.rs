@@ -402,6 +402,9 @@ pub fn factory_reset() -> std::result::Result<bool, String> {
         .map_err(|error| format!("DB transaction start failed: {error}"))?;
 
     transaction
+        .execute("DELETE FROM messages", [])
+        .map_err(|error| format!("Factory reset failed clearing messages: {error}"))?;
+    transaction
         .execute("DELETE FROM memories", [])
         .map_err(|error| format!("Factory reset failed clearing memories: {error}"))?;
     transaction
@@ -410,6 +413,9 @@ pub fn factory_reset() -> std::result::Result<bool, String> {
     transaction
         .execute("DELETE FROM config", [])
         .map_err(|error| format!("Factory reset failed clearing config: {error}"))?;
+    transaction
+        .execute("DELETE FROM sqlite_sequence WHERE name = 'messages'", [])
+        .map_err(|error| format!("Factory reset failed resetting messages sequence: {error}"))?;
 
     transaction
         .commit()

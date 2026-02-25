@@ -1,5 +1,7 @@
 // Anima backend service
 
+import 'dart:async';
+
 import 'package:logger/logger.dart';
 import '../api.dart' as rust_api;
 import '../src/rust/db.dart';
@@ -9,8 +11,11 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 class AnimaService {
   final Logger _logger = Logger();
   bool _initialized = false;
+  final StreamController<void> _factoryResetController = StreamController<void>.broadcast();
 
   AnimaService();
+
+  Stream<void> get onFactoryReset => _factoryResetController.stream;
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -179,6 +184,9 @@ class AnimaService {
     _logger.i('factoryReset start');
     try {
       final reset = await rust_simple.factoryReset();
+      if (reset) {
+        _factoryResetController.add(null);
+      }
       _logger.i('factoryReset result=$reset');
       return reset;
     } catch (e, st) {
