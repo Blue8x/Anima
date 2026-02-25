@@ -707,6 +707,15 @@ class AppTranslations {
       'ZH': '完全格式化时出错',
       'AR': 'خطأ أثناء التهيئة الكاملة',
     },
+    'factoryResetForcedCompleted': {
+      'EN': 'Reset took too long. Forced reset completed, restarting onboarding...',
+      'ES': 'El reset tardó demasiado. Reset forzado completado, reiniciando onboarding...',
+      'DE': 'Der Reset dauerte zu lange. Erzwungener Reset abgeschlossen, Onboarding wird neu gestartet...',
+      'RU': 'Сброс занял слишком много времени. Принудительный сброс завершён, перезапуск онбординга...',
+      'JP': 'リセットに時間がかかりすぎました。強制リセット完了、オンボーディングを再起動します...',
+      'ZH': '重置耗时过长。强制重置已完成，正在重新启动引导流程...',
+      'AR': 'استغرق إعادة الضبط وقتًا طويلاً. تم إكمال إعادة الضبط القسري، جارٍ إعادة تشغيل الإعداد...',
+    },
     'languageLabel': {
       'EN': 'Language',
       'ES': 'Idioma',

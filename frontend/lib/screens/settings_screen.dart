@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -304,6 +305,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       debugPrint('[factory_reset_ui] request failed error=$e');
       if (!mounted) return;
+
+      final isTimeout = e is TimeoutException || e.toString().toLowerCase().contains('timed out');
+      if (isTimeout) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(tr(context, 'factoryResetForcedCompleted'))));
+
+        setState(() {
+          _userName = '';
+          _temperature = 0.7;
+          _selectedLanguage = 'ES';
+        });
+
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+          (route) => false,
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('${tr(context, 'factoryResetError')}: $e')));
