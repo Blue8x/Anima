@@ -349,14 +349,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('[factory_reset_ui] request failed error=$e');
       if (!mounted) return;
 
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+      final forcedCompletedText = tr(context, 'factoryResetForcedCompleted');
+      final resetErrorPrefix = tr(context, 'factoryResetError');
+
       final isTimeout = e is TimeoutException || e.toString().toLowerCase().contains('timed out');
       if (isTimeout) {
         final deletedFiles = await _tryEmergencyDeleteDbFiles();
         debugPrint('[factory_reset_ui] emergency delete files count=$deletedFiles');
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(tr(context, 'factoryResetForcedCompleted'))));
+        scaffoldMessenger.showSnackBar(SnackBar(content: Text(forcedCompletedText)));
 
         setState(() {
           _userName = '';
@@ -376,16 +379,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           }
         }
 
-        Navigator.of(context).pushAndRemoveUntil(
+        navigator.pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const OnboardingScreen()),
           (route) => false,
         );
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${tr(context, 'factoryResetError')}: $e')));
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('$resetErrorPrefix: $e')));
     } finally {
       debugPrint('[factory_reset_ui] finally set loading false mounted=$mounted');
       if (mounted) {
