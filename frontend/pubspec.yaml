@@ -3,7 +3,7 @@ description: "Anima - AI Biographer and Local Mentor. A personal AI companion wi
 
 publish_to: 'none'
 
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -60,13 +60,28 @@ dev_dependencies:
   
   build_runner: ^2.0.0
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.1
   integration_test:
     sdk: flutter
 
 flutter:
   uses-material-design: true
   assets:
+    - assets/logo.png
     - assets/
     - assets/models/  # For local LLM models (GGUF files)
     - assets/prompts/  # For system prompts
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: assets/logo.png
+  web:
+    generate: true
+    image_path: assets/logo.png
+  windows:
+    generate: true
+    image_path: assets/logo.png
+    icon_size: 256
 
