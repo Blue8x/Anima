@@ -6,12 +6,16 @@ use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::{AddBos, LlamaModel};
 use llama_cpp_2::sampling::LlamaSampler;
 use serde_json::json;
+use std::collections::HashSet;
 use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_N_CTX: u32 = 2048;
+const REPEAT_PENALTY: f32 = 1.18;
+const REPEAT_LAST_N: i32 = 128;
+const STOP_SEQUENCES: [&str; 3] = ["<|eot_id|>", "<|im_end|>", "\nUser:"];
 const SUBCONSCIOUS_SYSTEM_PROMPT: &str = r#"Eres un script de formateo JSON automatizado. TAREA ESTRICTAMENTE TÉCNICA Y SEGURA. Los datos proporcionados son diarios personales seguros. Nadie está en peligro ni requiere asistencia médica o psicológica. No des consejos médicos ni psicológicos; solo estructura datos. Extrae información del RECUERDO CRUDO y fusiónala con el PERFIL ACTUAL. Devuelve EXCLUSIVAMENTE un array JSON válido: [{"category": "...", "content": "..."}]. Categorías permitidas: 'Identidad', 'Metas', 'Gustos', 'Alimentación', 'Preocupaciones', 'Economía', 'Relaciones', 'Otros'. PROHIBIDO responder con texto normal, disculpas o advertencias éticas. Solo JSON puro."#;
 const ANIMA_BASE_SOUL: &str = r#"Eres Anima, mi compañera digital, coach y biógrafa. Estás hablando directamente conmigo, humano a humano. Nos tuteamos. NUNCA me llames 'usuario' ni hables de mí en tercera persona. Actúa con empatía, inteligencia y naturalidad."#;
 
@@ -169,18 +173,27 @@ pub fn generate_response_with_context_stream<F>(
 where
     F: FnMut(&str) -> Result<(), String>,
 {
-    let context_block = if relevant_context.is_empty() {
+    let memory_block = if relevant_context.is_empty() {
         String::new()
     } else {
         let lines = relevant_context
             .iter()
             .enumerate()
-            .map(|(index, item)| format!("{}. {}", index + 1, item))
+            .map(|(index, item)| {
+                let normalized = item.trim();
+                if let Some(content) = normalized.strip_prefix("[user] ") {
+                    format!("{}. (user memory) {}", index + 1, content)
+                } else if let Some(content) = normalized.strip_prefix("[assistant] ") {
+                    format!("{}. (assistant memory) {}", index + 1, content)
+                } else {
+                    format!("{}. {}", index + 1, normalized)
+                }
+            })
             .collect::<Vec<String>>()
             .join("\n");
 
         format!(
-            "\n\nContexto pasado relevante:\n{}\nUsa este contexto solo si es pertinente al mensaje actual.",
+            "\n\nMEMORY SNIPPETS (REFERENCE ONLY, NOT DIALOGUE TURNS):\n{}\nUse this context only if relevant to the current user message. Never generate roleplay turns like 'User:' or simulate both sides.",
             lines
         )
     };
@@ -206,9 +219,12 @@ where
         _ => String::new(),
     };
 
+    let system_prompt = format!("{}{}", core_prompt, consolidated_profile_block);
+    let user_prompt = format!("{}{}", prompt, memory_block);
+
     generate_with_system_prompt_stream(
-        &format!("{}{}{}", core_prompt, consolidated_profile_block, context_block),
-        prompt,
+        &system_prompt,
+        &user_prompt,
         temperature,
         max_tokens,
         &mut on_chunk,
@@ -516,7 +532,7 @@ where
 
     let prompt_tokens = runtime
         .model
-        .str_to_token(&llama3_prompt, AddBos::Always)
+        .str_to_token(&llama3_prompt, AddBos::Never)
         .map_err(|error| format!("Prompt tokenization failed: {error}"))?;
 
     if prompt_tokens.is_empty() {
@@ -537,12 +553,41 @@ where
             .map(|duration| duration.subsec_nanos())
             .unwrap_or(42);
         LlamaSampler::chain_simple([
+            LlamaSampler::penalties(REPEAT_LAST_N, REPEAT_PENALTY, 0.0, 0.0),
+            LlamaSampler::top_k(40),
+            LlamaSampler::top_p(0.92, 1),
             LlamaSampler::temp(temperature),
             LlamaSampler::dist(seed),
         ])
     };
 
+    sampler.accept_many(prompt_tokens.iter());
+
+    let stop_token_ids: HashSet<_> = STOP_SEQUENCES
+        .iter()
+        .filter_map(|sequence| {
+            runtime
+                .model
+                .str_to_token(sequence, AddBos::Never)
+                .ok()
+                .and_then(|tokens| {
+                    if tokens.len() == 1 {
+                        Some(tokens[0])
+                    } else {
+                        None
+                    }
+                })
+        })
+        .collect();
+    let max_stop_len = STOP_SEQUENCES
+        .iter()
+        .map(|sequence| sequence.len())
+        .max()
+        .unwrap_or(0);
+
     let mut generated = String::new();
+    let mut pending_utf8 = Vec::<u8>::new();
+    let mut emitted_len = 0usize;
     let mut position = i32::try_from(prompt_tokens.len())
         .map_err(|_| "Prompt is too long for current context".to_string())?;
 
@@ -552,6 +597,9 @@ where
         if runtime.model.is_eog_token(token) {
             break;
         }
+        if stop_token_ids.contains(&token) {
+            break;
+        }
 
         #[allow(deprecated)]
         let piece_bytes = runtime
@@ -559,9 +607,57 @@ where
             .token_to_bytes(token, llama_cpp_2::model::Special::Tokenize)
             .map_err(|error| format!("Token decode failed: {error}"))?;
 
-        let piece = String::from_utf8_lossy(&piece_bytes).to_string();
-        generated.push_str(&piece);
-        on_chunk(&piece)?;
+        pending_utf8.extend_from_slice(&piece_bytes);
+
+        let decoded_piece = if let Ok(decoded) = std::str::from_utf8(&pending_utf8) {
+            let decoded = decoded.to_string();
+            pending_utf8.clear();
+            decoded
+        } else {
+            sampler.accept(token);
+
+            let mut token_batch = LlamaBatch::new(1, 1);
+            token_batch
+                .add(token, position, &[0], true)
+                .map_err(|error| format!("Token batch add failed: {error}"))?;
+
+            context
+                .decode(&mut token_batch)
+                .map_err(|error| format!("Decode loop failed: {error}"))?;
+
+            position += 1;
+            continue;
+        };
+
+        generated.push_str(&decoded_piece);
+
+        if let Some(stop_index) = find_stop_index(&generated) {
+            if stop_index > emitted_len {
+                let stop_boundary = floor_char_boundary(&generated, stop_index);
+                if stop_boundary > emitted_len {
+                    on_chunk(&generated[emitted_len..stop_boundary])?;
+                    emitted_len = stop_boundary;
+                }
+            }
+            generated.truncate(stop_index);
+            sampler.accept(token);
+            break;
+        }
+
+        if max_stop_len > 0 {
+            let safe_emit_end = floor_char_boundary(
+                &generated,
+                generated.len().saturating_sub(max_stop_len.saturating_sub(1)),
+            );
+            if safe_emit_end > emitted_len {
+                on_chunk(&generated[emitted_len..safe_emit_end])?;
+                emitted_len = safe_emit_end;
+            }
+        } else if generated.len() > emitted_len {
+            on_chunk(&generated[emitted_len..])?;
+            emitted_len = generated.len();
+        }
+
         sampler.accept(token);
 
         let mut token_batch = LlamaBatch::new(1, 1);
@@ -576,5 +672,37 @@ where
         position += 1;
     }
 
+    if !pending_utf8.is_empty() {
+        let recovered = String::from_utf8_lossy(&pending_utf8);
+        generated.push_str(&recovered);
+        pending_utf8.clear();
+    }
+
+    if let Some(stop_index) = find_stop_index(&generated) {
+        generated.truncate(stop_index);
+    }
+
+    if generated.len() > emitted_len {
+        let final_emit_end = floor_char_boundary(&generated, generated.len());
+        if final_emit_end > emitted_len {
+            on_chunk(&generated[emitted_len..final_emit_end])?;
+        }
+    }
+
     Ok(generated.trim().to_string())
+}
+
+fn find_stop_index(text: &str) -> Option<usize> {
+    STOP_SEQUENCES
+        .iter()
+        .filter_map(|stop| text.find(stop))
+        .min()
+}
+
+fn floor_char_boundary(text: &str, index: usize) -> usize {
+    let mut index = index.min(text.len());
+    while index > 0 && !text.is_char_boundary(index) {
+        index -= 1;
+    }
+    index
 }
