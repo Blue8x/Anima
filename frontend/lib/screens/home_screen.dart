@@ -89,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _hasRequestedProactiveGreeting = true;
 
     final hour = DateTime.now().hour;
-    final String timeOfDay = hour < 12 ? 'mañana' : hour < 20 ? 'tarde' : 'noche';
+    final String timeOfDay = hour < 12 ? 'morning' : hour < 20 ? 'afternoon' : 'evening';
 
     if (!mounted) return;
     setState(() {
@@ -99,7 +99,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
-      final greeting = await animaService.generateProactiveGreeting(timeOfDay);
+      final uiLanguage = context.read<TranslationService>().language;
+      final greeting = await animaService.generateProactiveGreeting(
+        timeOfDay,
+        appLanguage: uiLanguage,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -167,7 +171,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
-      await for (final chunk in animaService.streamMessage(content)) {
+      final uiLanguage = context.read<TranslationService>().language;
+      await for (final chunk in animaService.streamMessage(content, appLanguage: uiLanguage)) {
         if (!mounted) return;
         final normalizedChunk = _normalizeModelText(chunk);
         setState(() {

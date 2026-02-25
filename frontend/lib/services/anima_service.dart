@@ -29,11 +29,14 @@ class AnimaService {
     _logger.i('Rust AI models initialized');
   }
 
-  Future<String> processMessage(String text) async {
+  Future<String> processMessage(String text, {String? appLanguage}) async {
     final stopwatch = Stopwatch()..start();
     _logger.i('processMessage start');
     _logger.d('processMessage payload length=${text.length}');
     try {
+      if (appLanguage != null && appLanguage.trim().isNotEmpty) {
+        await setAppLanguage(appLanguage);
+      }
       final configuredTemperature = await getTemperature();
       final response = await rust_simple.sendMessage(
         message: text,
@@ -55,13 +58,16 @@ class AnimaService {
     }
   }
 
-  Stream<String> streamMessage(String text) {
+  Stream<String> streamMessage(String text, {String? appLanguage}) {
     _logger.i('streamMessage start');
     _logger.d('streamMessage payload length=${text.length}');
-    return _streamMessageInternal(text);
+    return _streamMessageInternal(text, appLanguage: appLanguage);
   }
 
-  Stream<String> _streamMessageInternal(String text) async* {
+  Stream<String> _streamMessageInternal(String text, {String? appLanguage}) async* {
+    if (appLanguage != null && appLanguage.trim().isNotEmpty) {
+      await setAppLanguage(appLanguage);
+    }
     final configuredTemperature = await getTemperature();
     yield* rust_simple.sendMessageStream(
       message: text,
@@ -82,9 +88,12 @@ class AnimaService {
     }
   }
 
-  Future<String> generateProactiveGreeting(String timeOfDay) async {
+  Future<String> generateProactiveGreeting(String timeOfDay, {String? appLanguage}) async {
     _logger.i('generateProactiveGreeting start timeOfDay=$timeOfDay');
     try {
+      if (appLanguage != null && appLanguage.trim().isNotEmpty) {
+        await setAppLanguage(appLanguage);
+      }
       final greeting = await rust_simple.generateProactiveGreeting(
         timeOfDay: timeOfDay,
       );
