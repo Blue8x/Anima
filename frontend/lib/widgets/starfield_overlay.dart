@@ -6,7 +6,7 @@ class StarfieldOverlay extends StatelessWidget {
   const StarfieldOverlay({
     super.key,
     this.seed = 42,
-    this.starCount = 140,
+    this.starCount = 90,
   });
 
   final int seed;
@@ -38,9 +38,9 @@ class _StarfieldPainter extends CustomPainter {
     for (var i = 0; i < starCount; i++) {
       final x = random.nextDouble() * width;
       final y = random.nextDouble() * height;
-      final radius = 0.4 + random.nextDouble() * 1.2;
+      final radius = 0.25 + random.nextDouble() * 0.8;
       final isWarm = random.nextInt(5) == 0;
-      final alpha = 90 + random.nextInt(120);
+      final alpha = 28 + random.nextInt(48);
 
       paint.color = isWarm
           ? const Color(0xFFFFF2B3).withAlpha(alpha)

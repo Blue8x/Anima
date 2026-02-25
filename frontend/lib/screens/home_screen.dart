@@ -279,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Stack(
           children: [
             const Positioned.fill(
-              child: StarfieldOverlay(seed: 1337, starCount: 150),
+              child: StarfieldOverlay(seed: 1337, starCount: 70),
             ),
             Column(
               children: [

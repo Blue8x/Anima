@@ -686,7 +686,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
             const Positioned.fill(
-              child: StarfieldOverlay(seed: 2026, starCount: 190),
+              child: StarfieldOverlay(seed: 2026, starCount: 85),
             ),
             Center(
               child: ConstrainedBox(

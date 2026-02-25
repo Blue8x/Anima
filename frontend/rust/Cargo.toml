@@ -12,6 +12,7 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 llama-cpp-2 = "0.1.136"
 serde_json = "1.0"
 chrono = "0.4"
+regex = "1.11"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
