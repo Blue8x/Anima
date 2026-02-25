@@ -1,8 +1,10 @@
 use chrono::Utc;
 use rusqlite::{params, Connection, Result};
 use std::cmp::Ordering;
+use std::io::ErrorKind;
 use std::path::Path;
 use std::sync::OnceLock;
+use std::thread::sleep;
 use std::time::Duration;
 
 const DB_PATH: &str = "anima_chat.db";
@@ -402,40 +404,59 @@ pub fn export_database(dest_path: &str) -> Result<bool> {
 
 pub fn factory_reset() -> std::result::Result<bool, String> {
     eprintln!("[factory_reset] start");
-    let mut conn = open_connection().map_err(|error| format!("DB open failed: {error}"))?;
-    eprintln!("[factory_reset] connection opened");
-    let transaction = conn
-        .transaction()
-        .map_err(|error| format!("DB transaction start failed: {error}"))?;
-    eprintln!("[factory_reset] transaction started");
 
-    transaction
-        .execute("DELETE FROM messages", [])
-        .map_err(|error| format!("Factory reset failed clearing messages: {error}"))?;
-    eprintln!("[factory_reset] messages cleared");
-    transaction
-        .execute("DELETE FROM memories", [])
-        .map_err(|error| format!("Factory reset failed clearing memories: {error}"))?;
-    eprintln!("[factory_reset] memories cleared");
-    transaction
-        .execute("DELETE FROM profile_traits", [])
-        .map_err(|error| format!("Factory reset failed clearing profile_traits: {error}"))?;
-    eprintln!("[factory_reset] profile_traits cleared");
-    transaction
-        .execute("DELETE FROM config", [])
-        .map_err(|error| format!("Factory reset failed clearing config: {error}"))?;
-    eprintln!("[factory_reset] config cleared");
-    transaction
-        .execute("DELETE FROM sqlite_sequence WHERE name = 'messages'", [])
-        .map_err(|error| format!("Factory reset failed resetting messages sequence: {error}"))?;
-    eprintln!("[factory_reset] sqlite_sequence reset");
+    // No connection pool exists in this app. We open a temporary connection,
+    // force checkpoint/journal switch, and drop it explicitly to release handles.
+    if Path::new(DB_PATH).exists() {
+        let conn = Connection::open(DB_PATH)
+            .map_err(|error| format!("Factory reset open failed: {error}"))?;
+        let _ = conn.busy_timeout(Duration::from_secs(2));
+        let _ = conn.execute_batch(
+            "PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE; PRAGMA optimize;",
+        );
+        drop(conn);
+        eprintln!("[factory_reset] maintenance connection dropped");
+    }
 
-    transaction
-        .commit()
-        .map_err(|error| format!("Factory reset commit failed: {error}"))?;
-    eprintln!("[factory_reset] commit completed");
+    for suffix in ["", "-wal", "-shm"] {
+        let path = format!("{}{}", DB_PATH, suffix);
+        remove_file_with_retries(&path)?;
+    }
+    eprintln!("[factory_reset] database files deleted");
+
+    init_db().map_err(|error| format!("Factory reset re-init failed: {error}"))?;
+    eprintln!("[factory_reset] database re-initialized");
 
     Ok(true)
+}
+
+fn remove_file_with_retries(path: &str) -> std::result::Result<(), String> {
+    let path_obj = Path::new(path);
+    if !path_obj.exists() {
+        return Ok(());
+    }
+
+    for attempt in 0..8 {
+        match std::fs::remove_file(path_obj) {
+            Ok(_) => return Ok(()),
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+            Err(error) => {
+                if attempt == 7 {
+                    return Err(format!("Failed deleting '{path}': {error}"));
+                }
+
+                eprintln!(
+                    "[factory_reset] delete retry {}/8 for '{}' due to: {}",
+                    attempt + 1,
+                    path,
+                    error
+                );
+                sleep(Duration::from_millis(150));
+            }
+        }
+    }
+
+    Err(format!("Failed deleting '{path}' after retries"))
 }
 
 fn open_connection() -> Result<Connection> {

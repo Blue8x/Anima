@@ -279,7 +279,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('[factory_reset_ui] request start');
       final animaService = context.read<AnimaService>();
       final resetOk = await animaService.factoryReset().timeout(
-        const Duration(seconds: 20),
+        const Duration(seconds: 12),
       );
       debugPrint('[factory_reset_ui] request completed result=$resetOk');
       if (!mounted) return;

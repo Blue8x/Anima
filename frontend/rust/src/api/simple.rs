@@ -6,7 +6,10 @@ pub use crate::db::MemoryItem;
 pub use crate::db::ProfileTrait;
 use crate::frb_generated::StreamSink;
 use std::path::PathBuf;
+use std::sync::mpsc;
 use std::sync::{Mutex, OnceLock};
+use std::thread;
+use std::time::Duration;
 
 static INIT_ERROR: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
@@ -46,8 +49,8 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
         }
     };
 
-    if let Err(error) = db::insert_message("assistant", &generated) {
-        eprintln!("Failed to store assistant message: {error}");
+    if let Err(error) = insert_message_with_timeout("assistant", &generated, Duration::from_secs(5)) {
+        eprintln!("Failed to store assistant message safely: {error}");
     }
 
     generated
@@ -111,10 +114,10 @@ pub fn export_brain() -> Result<String, String> {
 
 #[flutter_rust_bridge::frb]
 pub fn save_assistant_message(message: String) -> bool {
-    match db::insert_message("assistant", &message) {
+    match insert_message_with_timeout("assistant", &message, Duration::from_secs(5)) {
         Ok(_) => true,
         Err(error) => {
-            eprintln!("Failed to store assistant message: {error}");
+            eprintln!("Failed to store assistant message safely: {error}");
             false
         }
     }
@@ -247,7 +250,29 @@ pub fn export_database(dest_path: String) -> Result<bool, String> {
 
 #[flutter_rust_bridge::frb]
 pub fn factory_reset() -> Result<bool, String> {
-    db::factory_reset()
+    eprintln!("[factory_reset_api] request received");
+
+    let (tx, rx) = mpsc::channel::<Result<bool, String>>();
+
+    thread::spawn(move || {
+        let result = db::factory_reset();
+        let _ = tx.send(result);
+    });
+
+    match rx.recv_timeout(Duration::from_secs(10)) {
+        Ok(result) => {
+            eprintln!("[factory_reset_api] completed");
+            result
+        }
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            eprintln!("[factory_reset_api] timeout after 10s");
+            Err("Factory reset timed out after 10 seconds".to_string())
+        }
+        Err(error) => {
+            eprintln!("[factory_reset_api] channel error: {error}");
+            Err(format!("Factory reset channel error: {error}"))
+        }
+    }
 }
 
 #[flutter_rust_bridge::frb]
@@ -369,7 +394,7 @@ fn resolve_model_path(model_path: &str) -> Result<String, String> {
 }
 
 fn prepare_message_context(message: &str) -> Result<(i64, Vec<String>), String> {
-    let user_message_id = db::insert_message("user", message)
+    let user_message_id = insert_message_with_timeout("user", message, Duration::from_secs(5))
         .map_err(|error| format!("Error de DB al guardar mensaje de usuario: {error}"))?;
 
     let mut relevant_context = Vec::<String>::new();
@@ -411,4 +436,25 @@ fn prepare_message_context(message: &str) -> Result<(i64, Vec<String>), String> 
     }
 
     Ok((user_message_id, relevant_context))
+}
+
+fn insert_message_with_timeout(role: &str, content: &str, timeout: Duration) -> Result<i64, String> {
+    let role_owned = role.to_string();
+    let content_owned = content.to_string();
+
+    let (tx, rx) = mpsc::channel::<std::result::Result<i64, String>>();
+
+    thread::spawn(move || {
+        let result = db::insert_message(&role_owned, &content_owned)
+            .map_err(|error| format!("DB insert failed: {error}"));
+        let _ = tx.send(result);
+    });
+
+    match rx.recv_timeout(timeout) {
+        Ok(result) => result,
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            Err(format!("DB insert timeout after {}s", timeout.as_secs()))
+        }
+        Err(error) => Err(format!("DB insert channel error: {error}")),
+    }
 }
