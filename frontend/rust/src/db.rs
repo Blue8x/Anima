@@ -401,30 +401,30 @@ pub fn export_database(dest_path: &str) -> Result<bool> {
 }
 
 pub fn factory_reset() -> std::result::Result<bool, String> {
-    // Step 1: Open a connection and force WAL flush + switch to DELETE journal mode.
-    // This releases the -wal/-shm file handles that Windows keeps locked
-    // even after the connection appears closed, preventing remove_file from succeeding.
-    {
-        let conn = Connection::open(DB_PATH)
-            .map_err(|e| format!("Cannot open DB to prepare reset: {e}"))?;
-        let _ = conn.busy_timeout(Duration::from_secs(3));
-        // Flush WAL into main file and release SHM mapping
-        let _ = conn.execute_batch(
-            "PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;",
-        );
-    } // conn is dropped here, releasing all file handles
+    let mut conn = open_connection().map_err(|error| format!("DB open failed: {error}"))?;
+    let transaction = conn
+        .transaction()
+        .map_err(|error| format!("DB transaction start failed: {error}"))?;
 
-    // Step 2: Delete the DB file (and any remnant WAL/SHM files).
-    for suffix in &["", "-wal", "-shm"] {
-        let path = format!("{}{}", DB_PATH, suffix);
-        if std::path::Path::new(&path).exists() {
-            std::fs::remove_file(&path)
-                .map_err(|e| format!("Cannot delete '{}': {}", path, e))?;
-        }
-    }
+    transaction
+        .execute("DELETE FROM messages", [])
+        .map_err(|error| format!("Factory reset failed clearing messages: {error}"))?;
+    transaction
+        .execute("DELETE FROM memories", [])
+        .map_err(|error| format!("Factory reset failed clearing memories: {error}"))?;
+    transaction
+        .execute("DELETE FROM profile_traits", [])
+        .map_err(|error| format!("Factory reset failed clearing profile_traits: {error}"))?;
+    transaction
+        .execute("DELETE FROM config", [])
+        .map_err(|error| format!("Factory reset failed clearing config: {error}"))?;
+    transaction
+        .execute("DELETE FROM sqlite_sequence WHERE name = 'messages'", [])
+        .map_err(|error| format!("Factory reset failed resetting messages sequence: {error}"))?;
 
-    // Step 3: Recreate the database with a clean schema.
-    init_db().map_err(|e| format!("DB reinit failed: {e}"))?;
+    transaction
+        .commit()
+        .map_err(|error| format!("Factory reset commit failed: {error}"))?;
 
     Ok(true)
 }
