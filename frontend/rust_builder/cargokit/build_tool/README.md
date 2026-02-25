@@ -1,5 +1,7 @@
-/// This is copied from Cargokit (which is the official way to use it currently)
-/// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
+# Cargokit Build Tool (Vendored)
 
-A sample command-line application with an entrypoint in `bin/`, library code
-in `lib/`, and example unit test in `test/`.
+This directory is vendored from Cargokit and used by Flutter Rust Bridge tooling.
+
+- Upstream docs: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
+- Treat this as third-party tooling code.
+- Avoid local edits unless you intentionally patch the build toolchain.

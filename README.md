@@ -17,7 +17,7 @@ CA: Coming soon
 <br/>
 Support us: ANiMAZh5twD6mCm2RaYsw1VnYdbkWFsKvC6mz5UY5NEf (Solana wallet)
 <br/>
-https://my-anima.com
+[my-anima.com](https://my-anima.com)
 </div>
 
 ---
@@ -219,5 +219,5 @@ MIT
 ---
 
 <div align="center">
-<i>Built with disciplina, privacy, and Rust.</i>
+<i>Built with discipline, privacy, and Rust.</i>
 </div>

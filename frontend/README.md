@@ -2,6 +2,10 @@
 
 Anima's Flutter client. It consumes the Rust backend through `flutter_rust_bridge` (local FFI, no remote HTTP backend).
 
+- Website: [my-anima.com](https://my-anima.com)
+- Updates: [@myanimadotcom](https://x.com/myanimadotcom)
+- Contact: hello@my-anima.com
+
 ## Requirements
 
 - Flutter SDK
@@ -37,3 +41,8 @@ flutter analyze
 flutter test
 flutter build windows --release
 ```
+
+## Notes
+
+- If you update Rust APIs, regenerate bindings before running the app.
+- Windows one-command installer script lives in `../quickinstall/install.ps1`.
