@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="frontend/assets/logo.png" alt="Anima Logo" width="170"/>
+<img src="frontend/assets/logo.png" alt="Anima Logo" width="200"/>
 
-# ­ƒºá Anima
+# Anima
 
 **Your Digital Mind. Without the Cloud. Without Chains.**
 
@@ -17,19 +17,19 @@ Anima is a **100% local** AI companion (Rust + Flutter) designed to chat, rememb
 
 ---
 
-## Ô£¿ Why Anima?
+## Why Anima?
 
 Its goal is not only to answer messages, but to build long-term personal continuity through an advanced cognitive architecture. Core principle: **your context and identity stay local.**
 
-- ­ƒøí´©Å **Paranoid Privacy:** Zero cloud connections. Your data never leaves your hard drive.
-- ­ƒºá **Sleep Cycle Consolidation:** Anima processes conversations while "sleeping" to extract traits into a persistent profile.
-- ­ƒô© **Photographic Memory (RAG):** Anima retrieves relevant past context using local vector embeddings.
-- ­ƒîì **Native Polyglot:** Supports 20 languages (EN, ES, CH, AR, RU, JP, DE, FR, HI, PT, BN, UR, ID, KO, VI, IT, TR, TA, TH, PL).
-- ­ƒº¿ **Tabula Rasa:** Double-confirmation panic button for full local reset.
+- **Paranoid Privacy:** Zero cloud connections. Your data never leaves your hard drive.
+- **Sleep Cycle Consolidation:** Anima processes conversations while "sleeping" to extract traits into a persistent profile.
+- **Photographic Memory (RAG):** Anima retrieves relevant past context using local vector embeddings.
+- **Native Polyglot:** Supports 20 languages (EN, ES, CH, AR, RU, JP, DE, FR, HI, PT, BN, UR, ID, KO, VI, IT, TR, TA, TH, PL).
+- **Tabula Rasa:** Double-confirmation panic button for full local reset.
 
 ---
 
-## ­ƒÜÇ Quick Start (For Developers)
+## Quick Start (For Developers)
 
 ### 1. Prerequisites
 
@@ -77,7 +77,7 @@ For macOS/Linux, replace `-d windows` with `-d macos` or `-d linux`.
 
 ---
 
-## ­ƒÅù´©Å Architecture
+## Architecture
 
 Anima combines a Flutter app for premium dark UI with a Rust core for local cognition.
 
@@ -100,7 +100,7 @@ Anima combines a Flutter app for premium dark UI with a Rust core for local cogn
 
 ---
 
-## ­ƒôª Current State (V1)
+## Current State (V1)
 
 - Token-by-token local chat streaming.
 - Persistent history + semantic memory retrieval (RAG).
@@ -112,7 +112,7 @@ Anima combines a Flutter app for premium dark UI with a Rust core for local cogn
 
 ---
 
-## ­ƒôÜ Documentation
+## Documentation
 
 - Architecture: `docs/ARCHITECTURE.md`
 - FRB API: `docs/API.md`
@@ -123,7 +123,7 @@ Anima combines a Flutter app for premium dark UI with a Rust core for local cogn
 
 ---
 
-## ­ƒôª Packaging & Release (Building Installers)
+## Packaging & Release (Building Installers)
 
 > **Important:** The 5GB GGUF model must **never** be bundled inside installers due to package size limitations. The model should be downloaded **after installation** by the user or through a post-install script.
 
@@ -189,7 +189,7 @@ flutter_to_debian
 
 ---
 
-## ­ƒñØ Contributing
+## Contributing
 
 If you want to improve the codebase, UX, or cognition pipeline, open an issue or submit a PR.
 
