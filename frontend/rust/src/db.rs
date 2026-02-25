@@ -2,6 +2,7 @@ use chrono::Utc;
 use rusqlite::{params, Connection, Result};
 use std::cmp::Ordering;
 use std::path::Path;
+use std::sync::OnceLock;
 
 const DB_PATH: &str = "anima_chat.db";
 const MIN_SIMILARITY_THRESHOLD: f32 = 0.35;
@@ -11,6 +12,7 @@ const APP_LANGUAGE_KEY: &str = "app_language";
 const TEMPERATURE_KEY: &str = "temperature";
 const DEFAULT_APP_LANGUAGE: &str = "Español";
 const DEFAULT_TEMPERATURE: f32 = 0.7;
+static SCHEMA_INITIALIZED: OnceLock<()> = OnceLock::new();
 
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
@@ -46,7 +48,9 @@ pub struct ProfileTrait {
 
 pub fn init_db() -> Result<()> {
     let conn = Connection::open(DB_PATH)?;
-    init_schema(&conn)
+    init_schema(&conn)?;
+    let _ = SCHEMA_INITIALIZED.set(());
+    Ok(())
 }
 
 pub fn insert_message(role: &str, content: &str) -> Result<i64> {
@@ -426,7 +430,12 @@ pub fn factory_reset() -> std::result::Result<bool, String> {
 
 fn open_connection() -> Result<Connection> {
     let conn = Connection::open(DB_PATH)?;
-    init_schema(&conn)?;
+
+    if SCHEMA_INITIALIZED.get().is_none() {
+        init_schema(&conn)?;
+        let _ = SCHEMA_INITIALIZED.set(());
+    }
+
     Ok(conn)
 }
 
