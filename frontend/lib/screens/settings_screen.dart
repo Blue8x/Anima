@@ -277,18 +277,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
-      final resetOk = await animaService.factoryReset();
+      final resetOk = await animaService.factoryReset().timeout(
+        const Duration(seconds: 20),
+      );
       if (!mounted) return;
 
       if (!resetOk) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(tr(context, 'factoryResetFailed'))),
         );
-        setState(() {
-          _isFactoryResetting = false;
-        });
         return;
       }
+
+      setState(() {
+        _userName = '';
+        _temperature = 0.7;
+        _selectedLanguage = 'ES';
+      });
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const OnboardingScreen()),
@@ -299,9 +304,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('${tr(context, 'factoryResetError')}: $e')));
-      setState(() {
-        _isFactoryResetting = false;
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFactoryResetting = false;
+        });
+      }
     }
   }
 
