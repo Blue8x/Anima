@@ -24,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ChatMessage> _historyMessages = [];
   List<ChatMessage> _sessionMessages = [];
   bool _isHistoryExpanded = false;
+  bool _isInitializing = true;
   bool isTyping = false;
   bool _hasRequestedProactiveGreeting = false;
   bool _isOpenDrawerHovered = false;
@@ -63,6 +64,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ).showSnackBar(
         SnackBar(content: Text('${tr(context, 'failedLoadHistory')}: $e')),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
     }
   }
 
@@ -105,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
         isTyping = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate greeting: $e')),
+        SnackBar(content: Text('${tr(context, 'failedGenerateGreeting')}: $e')),
       );
     }
   }
@@ -221,6 +228,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isInitializing) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/anima_logo.png',
+                width: 130,
+                height: 130,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 18),
+              const CircularProgressIndicator(),
+            ],
+          ),
+        ),
+      );
+    }
+
     final messagesToRender = _isHistoryExpanded
         ? [..._historyMessages, ..._sessionMessages]
         : _sessionMessages;

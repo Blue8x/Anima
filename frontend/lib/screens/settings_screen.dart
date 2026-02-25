@@ -26,26 +26,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _temperature = 0.7;
 
   static const Map<String, String> _languageLabels = {
-    'ES': 'Español',
     'EN': 'English',
-    'CH': '中文',
-    'AR': 'العربية',
+    'ES': 'Español',
+    'DE': 'Deutsch',
     'RU': 'Русский',
     'JP': '日本語',
-    'DE': 'Deutsch',
-    'FR': 'Français',
-    'HI': 'हिन्दी',
-    'PT': 'Português',
-    'BN': 'বাংলা',
-    'UR': 'اردو',
-    'ID': 'Bahasa Indonesia',
-    'KO': '한국어',
-    'VI': 'Tiếng Việt',
-    'IT': 'Italiano',
-    'TR': 'Türkçe',
-    'TA': 'தமிழ்',
-    'TH': 'ไทย',
-    'PL': 'Polski',
+    'ZH': '中文',
+    'AR': 'العربية',
   };
 
   @override
@@ -63,7 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final temperature = await animaService.getTemperature();
 
       if (!mounted) return;
-      context.read<TranslationService>().setLanguage(normalizedLanguage);
+      context.read<TranslationService>().setLanguageLocal(normalizedLanguage);
       setState(() {
         _userName = userName;
         _selectedLanguage = normalizedLanguage;
@@ -73,7 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error cargando ajustes: $e')));
+      ).showSnackBar(SnackBar(content: Text('${tr(context, 'errorLoadingSettings')}: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -91,23 +78,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF18181B),
-          title: const Text('Cambiar nombre'),
+          title: Text(tr(context, 'changeName')),
           content: TextField(
             controller: controller,
             autofocus: true,
             textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              hintText: 'Tu nombre',
+            decoration: InputDecoration(
+              hintText: tr(context, 'yourName'),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
+              child: Text(tr(context, 'cancel')),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Guardar'),
+              child: Text(tr(context, 'save')),
             ),
           ],
         );
@@ -125,7 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!saved) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('No se pudo guardar el nombre')));
+        ).showSnackBar(SnackBar(content: Text(tr(context, 'nameSaveFailed'))));
         return;
       }
 
@@ -134,12 +121,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Nombre actualizado')));
+      ).showSnackBar(SnackBar(content: Text(tr(context, 'nameUpdated'))));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error guardando nombre: $e')));
+      ).showSnackBar(SnackBar(content: Text('${tr(context, 'errorSavingName')}: $e')));
     }
   }
 
@@ -147,30 +134,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final normalizedCode = TranslationService.normalizeLanguageCode(code);
 
     try {
-      final animaService = context.read<AnimaService>();
-      final saved = await animaService.setAppLanguage(normalizedCode);
+      final saved = await context.read<TranslationService>().changeLanguage(normalizedCode);
       if (!mounted) return;
 
       if (!saved) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('No se pudo cambiar el idioma')));
+        ).showSnackBar(SnackBar(content: Text(tr(context, 'languageChangeFailed'))));
         return;
       }
 
-      context.read<TranslationService>().setLanguage(normalizedCode);
       setState(() {
         _selectedLanguage = normalizedCode;
       });
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Idioma actualizado')));
+      ).showSnackBar(SnackBar(content: Text(tr(context, 'languageUpdated'))));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error cambiando idioma: $e')));
+      ).showSnackBar(SnackBar(content: Text('${tr(context, 'languageChangeFailed')}: $e')));
     }
   }
 
@@ -182,19 +167,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (!saved) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo guardar la creatividad')),
+          SnackBar(content: Text(tr(context, 'creativitySaveFailed'))),
         );
         return;
       }
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Creatividad actualizada')));
+      ).showSnackBar(SnackBar(content: Text(tr(context, 'creativityUpdated'))));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error guardando creatividad: $e')));
+      ).showSnackBar(SnackBar(content: Text('${tr(context, 'errorSavingCreativity')}: $e')));
     }
   }
 
@@ -217,12 +202,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cerebro exportado en: $filePath')),
+        SnackBar(content: Text('${tr(context, 'brainExportedAt')}: $filePath')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error exportando cerebro: $e')),
+        SnackBar(content: Text('${tr(context, 'errorExportingBrain')}: $e')),
       );
     } finally {
       if (mounted) {
@@ -241,18 +226,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF18181B),
-          title: const Text('¿Atención?'),
-          content: const Text(
-            'Estás a punto de borrar todos tus recuerdos, tu cerebro digital y tu identidad. Anima empezará de cero. ¿Quieres continuar?',
-          ),
+          title: Text(tr(context, 'warningTitle')),
+          content: Text(tr(context, 'factoryResetFirstConfirm')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
+              child: Text(tr(context, 'cancel')),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Continuar'),
+              child: Text(tr(context, 'continue')),
             ),
           ],
         );
@@ -266,18 +249,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF18181B),
-          title: const Text('⚠️ ÚLTIMA ADVERTENCIA'),
-          content: const Text(
-            'Esta acción es irreversible. ¿Estás absolutamente seguro de que quieres destruir a esta versión de Anima?',
-          ),
+          title: Text(tr(context, 'finalWarningTitle')),
+          content: Text(tr(context, 'factoryResetSecondConfirm')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
+              child: Text(tr(context, 'cancel')),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('¡BORRAR TODO!'),
+              child: Text(tr(context, 'deleteAll')),
             ),
           ],
         );
@@ -292,7 +273,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Formateando Anima...')));
+    ).showSnackBar(SnackBar(content: Text(tr(context, 'formattingAnima'))));
 
     try {
       final animaService = context.read<AnimaService>();
@@ -301,7 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (!resetOk) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo completar el formateo total')),
+          SnackBar(content: Text(tr(context, 'factoryResetFailed'))),
         );
         setState(() {
           _isFactoryResetting = false;
@@ -317,7 +298,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error en formateo total: $e')));
+      ).showSnackBar(SnackBar(content: Text('${tr(context, 'factoryResetError')}: $e')));
       setState(() {
         _isFactoryResetting = false;
       });
@@ -370,20 +351,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        title: const Text('Ajustes'),
+        title: Text(tr(context, 'settingsTitle')),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
               children: [
-                _sectionTitle('IDENTIDAD'),
+                _sectionTitle(tr(context, 'identitySection')),
                 _settingCard(
                   child: ListTile(
                     leading: const Icon(Icons.person_outline),
-                    title: const Text('Cambiar nombre'),
+                    title: Text(tr(context, 'changeName')),
                     subtitle: Text(
-                      _userName.trim().isEmpty ? 'Sin definir' : _userName,
+                      _userName.trim().isEmpty ? tr(context, 'undefined') : _userName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -394,7 +375,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _settingCard(
                   child: ListTile(
                     leading: const Icon(Icons.language_outlined),
-                    title: const Text('Cambiar idioma'),
+                    title: Text(tr(context, 'changeLanguage')),
                     trailing: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _selectedLanguage,
@@ -416,20 +397,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
-                _sectionTitle('COMPORTAMIENTO'),
+                _sectionTitle(tr(context, 'behaviorSection')),
                 _settingCard(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(Icons.psychology_outlined),
-                            SizedBox(width: 10),
+                            const Icon(Icons.psychology_outlined),
+                            const SizedBox(width: 10),
                             Text(
-                              'Creatividad del modelo',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                              tr(context, 'modelCreativity'),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
@@ -458,12 +439,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
-                _sectionTitle('DATOS Y PRIVACIDAD'),
+                _sectionTitle(tr(context, 'dataPrivacySection')),
                 _settingCard(
                   child: ListTile(
                     leading: const Icon(Icons.download_outlined),
-                    title: const Text('Exportar mi Cerebro'),
-                    subtitle: const Text('Guardar copia local en .json'),
+                    title: Text(tr(context, 'exportBrain')),
+                    subtitle: Text(tr(context, 'saveLocalJson')),
                     trailing: _isExporting
                         ? const SizedBox(
                             width: 16,
@@ -477,11 +458,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _settingCard(
                   child: ListTile(
                     leading: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-                    title: const Text(
-                      'Formatear Anima (Botón de Pánico)',
-                      style: TextStyle(color: Colors.redAccent),
+                    title: Text(
+                      tr(context, 'panicReset'),
+                      style: const TextStyle(color: Colors.redAccent),
                     ),
-                    subtitle: const Text('Zona de peligro · borrado total irreversible'),
+                    subtitle: Text(tr(context, 'dangerZoneIrreversible')),
                     trailing: _isFactoryResetting
                         ? const SizedBox(
                             width: 16,

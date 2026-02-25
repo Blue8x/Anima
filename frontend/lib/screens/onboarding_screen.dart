@@ -26,7 +26,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _step = 0;
   String? _hoveredLanguage;
   double _wheelAngle = 0;
-  bool _isMoreHovered = false;
 
   static const List<_LanguageOption> _languageOptions = [
     _LanguageOption(
@@ -40,8 +39,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       flagImageUrl: 'https://flagcdn.com/w320/us.png',
     ),
     _LanguageOption(
-      backendValue: 'CH',
-      nativeLabel: 'CH',
+      backendValue: 'ZH',
+      nativeLabel: 'ZH',
       flagImageUrl: 'https://flagcdn.com/w320/cn.png',
     ),
     _LanguageOption(
@@ -66,22 +65,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
   ];
 
-  static const List<_ExtraLanguageOption> _extraLanguageOptions = [
-    _ExtraLanguageOption(code: 'FR', label: 'Français'),
-    _ExtraLanguageOption(code: 'HI', label: 'हिन्दी'),
-    _ExtraLanguageOption(code: 'PT', label: 'Português'),
-    _ExtraLanguageOption(code: 'BN', label: 'বাংলা'),
-    _ExtraLanguageOption(code: 'UR', label: 'اردو'),
-    _ExtraLanguageOption(code: 'ID', label: 'Bahasa Indonesia'),
-    _ExtraLanguageOption(code: 'KO', label: '한국어'),
-    _ExtraLanguageOption(code: 'VI', label: 'Tiếng Việt'),
-    _ExtraLanguageOption(code: 'IT', label: 'Italiano'),
-    _ExtraLanguageOption(code: 'TR', label: 'Türkçe'),
-    _ExtraLanguageOption(code: 'TA', label: 'தமிழ்'),
-    _ExtraLanguageOption(code: 'TH', label: 'ไทย'),
-    _ExtraLanguageOption(code: 'PL', label: 'Polski'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -99,10 +82,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       setState(() {
         _selectedLanguage = language;
       });
-      context.read<TranslationService>().setLanguage(language);
+      context.read<TranslationService>().setLanguageLocal(language);
     } catch (_) {
       if (!mounted) return;
-      context.read<TranslationService>().setLanguage(_selectedLanguage);
+      context.read<TranslationService>().setLanguageLocal(_selectedLanguage);
     }
   }
 
@@ -130,11 +113,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
 
     final translationService = context.read<TranslationService>();
-    translationService.setLanguage(language);
-
-    try {
-      await context.read<AnimaService>().setAppLanguage(language);
-    } catch (_) {}
+    await translationService.changeLanguage(language);
 
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
@@ -144,127 +123,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  Future<void> _openMoreLanguages() async {
-    final selectedCode = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        String query = '';
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            final filtered = _extraLanguageOptions.where((option) {
-              final normalized = query.trim().toLowerCase();
-              if (normalized.isEmpty) return true;
-              return option.code.toLowerCase().contains(normalized) ||
-                  option.label.toLowerCase().contains(normalized);
-            }).toList();
-
-            return Dialog(
-              backgroundColor: const Color(0xFF17171C),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'More languages',
-                      style: TextStyle(
-                        color: Colors.white.withAlpha(230),
-                        fontSize: 19,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      onChanged: (value) {
-                        setStateDialog(() {
-                          query = value;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Find language...',
-                        hintStyle: TextStyle(color: Colors.white.withAlpha(135)),
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.white.withAlpha(12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.white.withAlpha(24)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.white.withAlpha(24)),
-                        ),
-                        focusedBorder: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(12)),
-                          borderSide: BorderSide(color: Color(0xFF8B5CF6)),
-                        ),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: filtered.map((option) {
-                        return InkWell(
-                          onTap: () => Navigator.of(context).pop(option.code),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withAlpha(16),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withAlpha(28)),
-                            ),
-                            child: Text(
-                              '${option.code} · ${option.label}',
-                              style: TextStyle(
-                                color: Colors.white.withAlpha(220),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    if (filtered.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Text(
-                          'No matches found',
-                          style: TextStyle(color: Colors.white.withAlpha(150)),
-                        ),
-                      ),
-                    const SizedBox(height: 14),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Close'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    if (selectedCode == null || !mounted) return;
-    await _selectLanguageAndContinue(selectedCode);
-  }
-
   Future<void> _startJourney() async {
     final name = _nameController.text.trim();
     final seed = _seedController.text.trim();
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tu nombre es obligatorio para empezar.')),
+        SnackBar(content: Text(tr(context, 'requiredNameStart'))),
       );
       return;
     }
@@ -275,11 +140,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
-      final languageSaved = await animaService.setAppLanguage(_selectedLanguage);
+      final languageSaved = await context
+          .read<TranslationService>()
+          .changeLanguage(_selectedLanguage);
       if (!languageSaved) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo guardar el idioma.')),
+          SnackBar(content: Text(tr(context, 'languageSaveFailed'))),
         );
         setState(() {
           _isSubmitting = false;
@@ -288,13 +155,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       }
 
       if (!mounted) return;
-      context.read<TranslationService>().setLanguage(_selectedLanguage);
       final nameSaved = await animaService.setUserName(name);
 
       if (!nameSaved) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo guardar tu nombre.')),
+          SnackBar(content: Text(tr(context, 'couldNotSaveName'))),
         );
         setState(() {
           _isSubmitting = false;
@@ -313,7 +179,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error durante onboarding: $e')),
+        SnackBar(content: Text('${tr(context, 'onboardingError')}: $e')),
       );
       setState(() {
         _isSubmitting = false;
@@ -347,60 +213,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Positioned(
-              child: MouseRegion(
-                onEnter: (_) {
-                  setState(() {
-                    _isMoreHovered = true;
-                  });
-                },
-                onExit: (_) {
-                  setState(() {
-                    _isMoreHovered = false;
-                  });
-                },
-                child: InkWell(
-                  onTap: _openMoreLanguages,
-                  borderRadius: BorderRadius.circular(30),
-                  child: AnimatedScale(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOutCubic,
-                    scale: _isMoreHovered ? 1.04 : 1.0,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 190),
-                      curve: Curves.easeOutCubic,
-                      width: 82,
-                      height: 82,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withAlpha(_isMoreHovered ? 20 : 14),
-                        border: Border.all(
-                          color: Colors.white.withAlpha(_isMoreHovered ? 44 : 35),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF8B5CF6).withAlpha(
-                              _isMoreHovered ? 34 : 26,
-                            ),
-                            blurRadius: _isMoreHovered ? 12 : 10,
-                            spreadRadius: 0,
-                          ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'more...',
-                        style: TextStyle(
-                          color: Colors.white.withAlpha(230),
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
             for (var index = 0; index < _languageOptions.length; index++)
               Builder(builder: (_) {
                 final option = _languageOptions[index];
@@ -756,11 +568,4 @@ class _LanguageOption {
     required this.nativeLabel,
     required this.flagImageUrl,
   });
-}
-
-class _ExtraLanguageOption {
-  final String code;
-  final String label;
-
-  const _ExtraLanguageOption({required this.code, required this.label});
 }

@@ -39,7 +39,7 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error cargando memorias: $e')));
+      ).showSnackBar(SnackBar(content: Text('${tr(context, 'errorLoadingMemories')}: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -58,7 +58,7 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
       if (!deleted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('No se pudo borrar la memoria')));
+        ).showSnackBar(SnackBar(content: Text(tr(context, 'deleteMemoryFailed'))));
         return;
       }
 
@@ -67,13 +67,13 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Memoria eliminada')),
+        SnackBar(content: Text(tr(context, 'memoryDeleted'))),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error borrando memoria: $e')));
+      ).showSnackBar(SnackBar(content: Text('${tr(context, 'errorDeletingMemory')}: $e')));
     }
   }
 
@@ -92,7 +92,7 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
             );
           },
         ),
-        title: const Text('Memorias'),
+        title: Text(tr(context, 'memoryTitle')),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -107,7 +107,7 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _memories.isEmpty
-                    ? const Center(child: Text('No hay memorias guardadas'))
+                  ? Center(child: Text(tr(context, 'noMemoriesSaved')))
                     : ListView.builder(
                         padding: const EdgeInsets.all(12),
                         itemCount: _memories.length,

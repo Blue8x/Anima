@@ -87,7 +87,7 @@ class _BrainScreenState extends State<BrainScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error buscando recuerdos: $e')),
+        SnackBar(content: Text('${tr(context, 'errorSearchingMemories')}: $e')),
       );
     } finally {
       if (mounted) {
@@ -111,16 +111,16 @@ class _BrainScreenState extends State<BrainScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Factory Reset Cognitivo'),
-          content: const Text('¿Borrar evolución cognitiva?'),
+          title: Text(tr(context, 'factoryResetCognitive')),
+          content: Text(tr(context, 'confirmDeleteCognitive')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
+              child: Text(tr(context, 'cancel')),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Borrar'),
+              child: Text(tr(context, 'delete')),
             ),
           ],
         );
@@ -137,17 +137,17 @@ class _BrainScreenState extends State<BrainScreen> {
 
       if (cleared) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Evolución cognitiva borrada')),
+          SnackBar(content: Text(tr(context, 'cognitiveDeleted'))),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo borrar el perfil cognitivo')),
+          SnackBar(content: Text(tr(context, 'cognitiveDeleteFailed'))),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error borrando perfil: $e')),
+        SnackBar(content: Text('${tr(context, 'errorDeletingProfile')}: $e')),
       );
     }
   }
@@ -155,12 +155,14 @@ class _BrainScreenState extends State<BrainScreen> {
   Future<void> _sleepAndShutdown() async {
     if (_isProcessingSleep) return;
 
+    final translationService = context.read<TranslationService>();
+
     setState(() {
       _isProcessingSleep = true;
     });
 
     double progress = 0.0;
-    String statusText = 'Iniciando ciclo de sueño...';
+    String statusText = translationService.tr('sleepStart');
     StateSetter? dialogSetState;
     Timer? fakeProgressTimer;
 
@@ -172,7 +174,7 @@ class _BrainScreenState extends State<BrainScreen> {
     showGeneralDialog<void>(
       context: context,
       barrierDismissible: false,
-      barrierLabel: 'Sleep cycle progress',
+      barrierLabel: tr(context, 'sleepProgressLabel'),
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 260),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
@@ -248,11 +250,11 @@ class _BrainScreenState extends State<BrainScreen> {
       progress = (progress + 0.08).clamp(0.0, 0.9);
 
       if (progress < 0.3) {
-        statusText = 'Analizando recuerdos crudos...';
+        statusText = translationService.tr('sleepAnalyzing');
       } else if (progress < 0.6) {
-        statusText = 'Extrayendo rasgos de personalidad...';
+        statusText = translationService.tr('sleepExtracting');
       } else {
-        statusText = 'Consolidando Cerebro Digital...';
+        statusText = translationService.tr('sleepConsolidating');
       }
 
       refreshDialog();
@@ -264,7 +266,7 @@ class _BrainScreenState extends State<BrainScreen> {
 
       fakeProgressTimer.cancel();
       progress = 1.0;
-      statusText = '¡Ciclo completado. Buenas noches!';
+      statusText = translationService.tr('sleepCompleted');
       refreshDialog();
 
       await Future.delayed(const Duration(seconds: 1));
@@ -277,7 +279,7 @@ class _BrainScreenState extends State<BrainScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error en ciclo de sueño: $e')),
+        SnackBar(content: Text('${tr(context, 'errorSleepCycle')}: $e')),
       );
       setState(() {
         _isProcessingSleep = false;
@@ -299,7 +301,7 @@ class _BrainScreenState extends State<BrainScreen> {
             );
           },
         ),
-        title: const Text('Cerebro Digital'),
+        title: Text(tr(context, 'brainTitle')),
         actions: [
           _buildAnimatedAppBarIconButton(
             icon: Icons.delete_outline,
@@ -360,7 +362,7 @@ class _BrainScreenState extends State<BrainScreen> {
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : displayedMemories.isEmpty
-                    ? const Center(child: Text('No hay recuerdos para esta búsqueda'))
+                  ? Center(child: Text(tr(context, 'noMemoriesForSearch')))
                     : ListView(
                         padding: const EdgeInsets.all(12),
                         children: displayedMemories.map((memory) {
@@ -385,7 +387,7 @@ class _BrainScreenState extends State<BrainScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _sleepAndShutdown,
         icon: const Icon(Icons.bedtime),
-        label: const Text('Dar las buenas noches (Procesar y Apagar)'),
+        label: Text(tr(context, 'goodNightAction')),
       ),
       drawer: const MainDrawer(currentSection: MainDrawerSection.brain),
     );

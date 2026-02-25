@@ -45,33 +45,41 @@ class AnimaApp extends StatelessWidget {
       providers: [
         Provider<AnimaService>.value(value: animaService),
         ChangeNotifierProvider<TranslationService>(
-          create: (_) => TranslationService(initialLanguage: initialLanguage),
+          create: (_) => TranslationService(
+            animaService: animaService,
+            initialLanguage: initialLanguage,
+          ),
         ),
       ],
-      child: MaterialApp(
-        title: 'Anima - Tu Cerebro Digital',
-        debugShowCheckedModeBanner: false,
-        themeMode: ThemeMode.dark,
-        darkTheme: ThemeData(
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: const Color(0xFF09090B),
-          canvasColor: const Color(0xFF18181B),
-          cardColor: const Color(0xFF18181B),
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF8B5CF6),
-            secondary: Color(0xFF8B5CF6),
-            surface: Color(0xFF18181B),
-            onPrimary: Color(0xFFF4F4F5),
-            onSurface: Color(0xFFE4E4E7),
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF09090B),
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-          ),
-          useMaterial3: true,
-        ),
-        home: initialScreen,
+      child: Consumer<TranslationService>(
+        builder: (context, translationService, _) {
+          return MaterialApp(
+            title: translationService.tr('appTitle'),
+            locale: translationService.locale,
+            debugShowCheckedModeBanner: false,
+            themeMode: ThemeMode.dark,
+            darkTheme: ThemeData(
+              brightness: Brightness.dark,
+              scaffoldBackgroundColor: const Color(0xFF09090B),
+              canvasColor: const Color(0xFF18181B),
+              cardColor: const Color(0xFF18181B),
+              colorScheme: const ColorScheme.dark(
+                primary: Color(0xFF8B5CF6),
+                secondary: Color(0xFF8B5CF6),
+                surface: Color(0xFF18181B),
+                onPrimary: Color(0xFFF4F4F5),
+                onSurface: Color(0xFFE4E4E7),
+              ),
+              appBarTheme: const AppBarTheme(
+                backgroundColor: Color(0xFF09090B),
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+              ),
+              useMaterial3: true,
+            ),
+            home: initialScreen,
+          );
+        },
       ),
     );
   }
