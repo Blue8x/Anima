@@ -7,7 +7,9 @@ const MIN_SIMILARITY_THRESHOLD: f32 = 0.35;
 const CORE_PROMPT_KEY: &str = "core_prompt";
 const USER_NAME_KEY: &str = "user_name";
 const APP_LANGUAGE_KEY: &str = "app_language";
+const TEMPERATURE_KEY: &str = "temperature";
 const DEFAULT_APP_LANGUAGE: &str = "Español";
+const DEFAULT_TEMPERATURE: f32 = 0.7;
 
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
@@ -269,6 +271,30 @@ pub fn set_app_language(lang: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn get_temperature() -> Result<f32> {
+    let conn = open_connection()?;
+    let mut statement = conn.prepare("SELECT value FROM config WHERE key = ?1 LIMIT 1")?;
+    let result = statement.query_row(params![TEMPERATURE_KEY], |row| row.get::<_, String>(0));
+
+    match result {
+        Ok(value) => Ok(parse_temperature(&value).unwrap_or(DEFAULT_TEMPERATURE)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(DEFAULT_TEMPERATURE),
+        Err(error) => Err(error),
+    }
+}
+
+pub fn set_temperature(temperature: f32) -> Result<()> {
+    let conn = open_connection()?;
+    let sanitized = temperature.clamp(0.1, 1.0);
+    conn.execute(
+        "INSERT INTO config(key, value)
+         VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![TEMPERATURE_KEY, format!("{sanitized:.3}")],
+    )?;
+    Ok(())
+}
+
 pub fn clear_profile() -> Result<()> {
     let conn = open_connection()?;
     conn.execute("DELETE FROM profile_traits", [])?;
@@ -403,7 +429,21 @@ fn init_schema(conn: &Connection) -> Result<()> {
         [],
     )?;
 
+    conn.execute(
+        "INSERT OR IGNORE INTO config (key, value) VALUES (?1, ?2)",
+        params![TEMPERATURE_KEY, DEFAULT_TEMPERATURE.to_string()],
+    )?;
+
     Ok(())
+}
+
+fn parse_temperature(value: &str) -> Option<f32> {
+    let parsed = value.trim().parse::<f32>().ok()?;
+    if parsed.is_finite() {
+        Some(parsed.clamp(0.1, 1.0))
+    } else {
+        None
+    }
 }
 
 fn f32_slice_to_blob(vector: &[f32]) -> Vec<u8> {

@@ -28,10 +28,12 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
         }
     };
 
+    let effective_temperature = db::get_temperature().unwrap_or(temperature.clamp(0.1, 1.0));
+
     let generated = match ai::generate_response_with_context(
         &message,
         &relevant_context,
-        temperature,
+        effective_temperature,
         max_tokens,
     ) {
         Ok(output) if !output.is_empty() => output,
@@ -63,10 +65,12 @@ pub fn send_message_stream(
 
     let (_user_message_id, relevant_context) = prepare_message_context(&message)?;
 
+    let effective_temperature = db::get_temperature().unwrap_or(temperature.clamp(0.1, 1.0));
+
     ai::generate_response_with_context_stream(
         &message,
         &relevant_context,
-        temperature,
+        effective_temperature,
         max_tokens,
         |chunk| {
             let _ = sink.add(chunk.to_string());
@@ -75,6 +79,33 @@ pub fn send_message_stream(
     )?;
 
     Ok(())
+}
+
+#[flutter_rust_bridge::frb]
+pub fn get_temperature() -> f32 {
+    match db::get_temperature() {
+        Ok(temperature) => temperature,
+        Err(error) => {
+            eprintln!("Failed to load temperature: {error}");
+            0.7
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn set_temperature(temperature: f32) -> bool {
+    match db::set_temperature(temperature) {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("Failed to save temperature: {error}");
+            false
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn export_brain() -> Result<String, String> {
+    ai::export_brain()
 }
 
 #[flutter_rust_bridge::frb]

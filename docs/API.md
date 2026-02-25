@@ -2,35 +2,55 @@
 
 ## Overview
 
-Anima frontend and backend communicate through flutter_rust_bridge (FRB) v2 over FFI.
+The Flutter app consumes the Rust backend through `flutter_rust_bridge` v2 (in-process FFI, no HTTP).
 
-Current status:
-- Bridge technology: flutter_rust_bridge v2
-- Dart generated bindings: frontend/lib/api.dart and frontend/lib/frb_generated*.dart
-- Rust exported API source: frontend/rust/src/api/simple.rs
+- Rust API source: `frontend/rust/src/api/simple.rs`
+- Dart bindings generated: `frontend/lib/src/rust/` and `frontend/lib/api.dart`
 
-## Communication Model (Current)
+## Bootstrap
 
-- Type: In-process FFI calls (no HTTP server)
-- Dart side: generated top-level functions in frontend/lib/api.dart
-- Rust side: functions annotated with #[flutter_rust_bridge::frb]
+Before using the API:
 
-## Current Exported API (frontend/rust/src/api/simple.rs)
+```dart
+WidgetsFlutterBinding.ensureInitialized();
+await RustLib.init();
+```
 
-### Chat and bootstrap
+Then initialize models:
+
+```dart
+await initApp(chatModelPath: 'models/anima_v1.gguf', embeddingModelPath: 'models/all-MiniLM-L6-v2.gguf');
+```
+
+## Currently Exposed Endpoints
+
+### System / Init
+
+- `greet(name: String) -> String`
 - `init_app(chat_model_path: String, embedding_model_path: String) -> ()`
+
+### Chat
+
 - `send_message(message: String, temperature: f32, max_tokens: u32) -> String`
+- `send_message_stream(message: String, temperature: f32, max_tokens: u32, sink) -> Result<(), String>`
+- `save_assistant_message(message: String) -> bool`
+- `generate_proactive_greeting(time_of_day: String) -> Result<String, String>`
 - `get_chat_history() -> Vec<ChatMessage>`
 
-### Memory and profile
+### Memory
+
 - `get_all_memories() -> Vec<MemoryItem>`
 - `delete_memory(id: i64) -> bool`
-- `run_sleep_cycle() -> Result<bool, String>`
+
+### Profile / Cognitive
+
 - `get_profile_traits() -> Vec<ProfileTrait>`
 - `add_profile_trait(category: String, content: String) -> bool`
 - `clear_profile() -> bool`
+- `run_sleep_cycle() -> Result<bool, String>`
 
-### User config and identity
+### Config
+
 - `get_user_name() -> String`
 - `set_user_name(name: String) -> bool`
 - `get_core_prompt() -> String`
@@ -38,104 +58,37 @@ Current status:
 - `get_app_language() -> String`
 - `set_app_language(lang: String) -> bool`
 
-### Utilities
+### Maintenance
+
 - `export_database(dest_path: String) -> Result<bool, String>`
-- `greet(name: String) -> String`
+- `factory_reset() -> Result<bool, String>`
 
-## Legacy FRB Surface (frontend/lib/api.dart)
+## Main Types
 
-### saveUserMessage
+### ChatMessage
 
-Stores a user message in episodic memory.
+- `id: i64`
+- `role: String`
+- `content: String`
+- `timestamp: String`
 
-Dart call:
+### MemoryItem
 
-```dart
-final id = await saveUserMessage(content: 'Today was an intense day.');
-```
+- `id: i64` (message_id)
+- `content: String`
+- `created_at: String`
 
-Dart signature:
+### ProfileTrait
 
-```dart
-Future<String> saveUserMessage({required String content})
-```
+- `category: String`
+- `content: String`
 
-Rust source function:
+## Integration Notes
 
-```rust
-#[flutter_rust_bridge::frb]
-pub fn save_user_message(content: String) -> Result<String, String>
-```
+- `send_message_stream` emits chunks; the UI should concatenate tokens and persist the final result (`save_assistant_message`).
+- Persisted language (`app_language`) affects both UI and backend prompt steering.
+- `factory_reset` deletes `memories`, `profile_traits`, and `config`.
 
-Response semantics:
-- Success: returns the created message id
-- Error: throws an FRB exception carrying Rust String error
-
-### getRecentMemories
-
-Returns the most recent episodic memories.
-
-Dart call:
-
-```dart
-final memories = await getRecentMemories(limit: 50);
-```
-
-Dart signature:
-
-```dart
-Future<List<EpisodicMemoryDto>> getRecentMemories({required int limit})
-```
-
-Rust source function:
-
-```rust
-#[flutter_rust_bridge::frb]
-pub fn get_recent_memories(limit: u32) -> Result<Vec<EpisodicMemoryDto>, String>
-```
-
-## Data Types
-
-### EpisodicMemoryDto
-
-Generated Dart DTO in frontend/lib/api.dart:
-
-```dart
-class EpisodicMemoryDto {
-  final String id;
-  final String timestamp;
-  final String role;
-  final String content;
-  final bool processed;
-}
-```
-
-Field meanings:
-- id: message identifier
-- timestamp: ISO-8601 string generated in Rust
-- role: user or ai
-- content: message text
-- processed: true when consolidated by sleep cycle
-
-## App Bootstrap Requirements
-
-Before calling any API function, FRB must be initialized once:
-
-```dart
-WidgetsFlutterBinding.ensureInitialized();
-await RustLib.init();
-```
-
-Current app initialization is in frontend/lib/main.dart.
-
-## Planned API (Not Yet Exposed via FRB)
-
-The following areas are planned in architecture docs but are not yet exported in frontend/rust/src/api/simple.rs:
-- semantic insights
-- user identity read/update
-- sleep-cycle control and status
-- settings and health/status surface
-
-When these are implemented, update this file with exact Dart signatures and matching Rust functions.
+---
 
 Last updated: February 25, 2026

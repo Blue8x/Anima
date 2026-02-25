@@ -1,35 +1,34 @@
 # Anima Frontend (Flutter)
 
-Frontend Flutter app for Anima. It uses `flutter_rust_bridge` v2 to call the Rust backend through generated Dart bindings.
+Anima's Flutter client. It consumes the Rust backend through `flutter_rust_bridge` (local FFI, no remote HTTP backend).
 
-## Prerequisites
+## Requirements
 
-- Flutter SDK (with Dart >= 3.3)
-- Rust toolchain installed
+- Flutter SDK
+- Rust toolchain
+- `.gguf` models available in `../models/`
 
-## Run locally (Windows)
-
-From the repository root:
+## Run locally
 
 ```bash
-cd backend
-cargo build --release
-
-cd ../frontend
+cd frontend
 flutter pub get
 flutter run -d windows
 ```
 
-## FRB v2 bindings
+You can use `-d macos` or `-d linux` depending on your platform.
 
-Current generated files are in `lib/`:
+## FRB Integration
 
-- `lib/api.dart`
-- `lib/frb_generated.dart`
-- `lib/frb_generated.io.dart`
-- `lib/frb_generated.web.dart`
+- Rust API: `rust/src/api/simple.rs`
+- Service wrapper: `lib/services/anima_service.dart`
+- Bootstrap: `lib/main.dart` (`await RustLib.init()` + `initApp(...)`)
 
-App bootstrap initializes FRB in `lib/main.dart` with `await RustLib.init()`.
+If you change Rust signatures:
+
+```bash
+flutter_rust_bridge_codegen generate
+```
 
 ## Useful commands
 

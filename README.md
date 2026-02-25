@@ -1,76 +1,85 @@
-# Anima — Your 100% Local AI Companion
+# Anima
 
-## A Local Cognitive Architecture for Memory, Identity, and Personal Evolution
+Anima is a **100% local** AI companion (Rust + Flutter) designed to chat, remember, and evolve with you without relying on cloud services.
 
-Anima is a personal AI platform that runs entirely on your device: private, persistent, and designed to remember what matters. It talks with you, learns from your history, and consolidates long-term knowledge without relying on cloud services.
+Its goal is not only to answer messages, but to build long-term personal continuity through:
+- contextual memory (RAG),
+- cognitive consolidation (Sleep Cycle),
+- persistent user profile,
+- and full local data control.
 
-> **Core principle:** your data, your context, and your identity stay under your control.
+## What is this project?
+
+Anima combines a Flutter app (UX, onboarding, chat, settings) with a Rust core (local inference, semantic memory, consolidation, and SQLite persistence). Frontend and backend communicate through flutter_rust_bridge.
+
+Core principle: **your context and identity stay local**.
 
 ---
 
-## Value Proposition
+## Current state (V1)
 
-Anima combines local inference, semantic memory, and nightly cognitive consolidation to build a long-term human–AI relationship. It is not a disposable chatbot; it is a continuity architecture for personal context.
+- Local chat with token-by-token streaming.
+- Persistent history and vector memory.
+- Semantic retrieval of relevant context (RAG).
+- Sleep Cycle consolidation into profile_traits.
+- Advanced onboarding with language selector (wheel + more menu).
+- Premium dark UI inspired by the web visual language.
+- Full factory reset (double confirmation).
+- Local database export.
 
 ---
 
-## Anima.ai (Web Experience)
+## Visual identity
 
-`Anima.ai` será la versión web oficial con la misma estética premium oscura, identidad visual consistente y foco en claridad emocional + privacidad.
-
-### Preview de la Web
+### Anima.ai (web vision)
 
 ![Anima.ai web preview](frontend/assets/web.png)
 
-### Preview de la App
+### App identity
 
-![Anima app preview](frontend/assets/logo.png)
-
----
-
-## Core Capabilities
-
-- **Total Privacy**  
-  100% local execution with GGUF models. Compatible with high-autonomy model setups, including uncensored variants such as Dolphin Llama 3.
-
-- **Dual Memory (RAG + Semantic)**  
-  Combines day-to-day episodic memory with long-term semantic memory to retrieve useful context and preserve personal continuity.
-
-- **Digital Brain (Sleep Cycle)**  
-  Processes conversations before shutdown, extracts key traits (identity, goals, preferences, concerns), and consolidates a cognitive profile.
-
-- **Fixed Soul**  
-  An immutable backend Core Prompt preserves purpose and tone, while still allowing user-defined extensions.
-
-- **Multilingual Support**  
-  UI and assistant responses in **Spanish, English, Chinese, Arabic, and Russian**.
-
-- **Tabula Rasa**  
-  Full reset with reinforced confirmation to erase memory, profile, and configuration, then return to onboarding.
+![Anima app logo](frontend/assets/logo.png)
 
 ---
 
-## Technology Stack
+## Architecture at a glance
 
 | Layer | Technology |
 |---|---|
 | Frontend | Flutter |
 | Backend | Rust |
-| Native bridge | flutter_rust_bridge |
-| Local inference | llama.cpp + GGUF |
+| Bridge | flutter_rust_bridge v2 |
+| Local inference | llama.cpp + GGUF models |
 | Persistence | SQLite |
+
+### Main flow
+
+1. User sends a message.
+2. Rust stores the message and generates an embedding.
+3. Similar memories are retrieved through cosine similarity.
+4. Prompt is built with context + profile + language.
+5. Model generates response (sync or streaming).
+6. Final response and derived memory are persisted.
 
 ---
 
-## Installation and Run
+## Languages
 
-### 1. Requirements
+Anima supports language selection and normalization in frontend and backend prompt steering.
 
-- Rust
+Currently supported language codes:
+ES, EN, CH, AR, RU, JP, DE, FR, HI, PT, BN, UR, ID, KO, VI, IT, TR, TA, TH, PL.
+
+---
+
+## Requirements
+
 - Flutter SDK
-- `.gguf` models placed in the expected project folder (for example `models/`)
+- Rust toolchain (rustup, cargo)
+- GGUF models in models/
+  - chat model (example: models/anima_v1.gguf)
+  - embedding model (example: models/all-MiniLM-L6-v2.gguf)
 
-Optional but recommended (for first-time desktop setup):
+Optional (desktop):
 
 ```bash
 flutter config --enable-windows-desktop
@@ -78,16 +87,9 @@ flutter config --enable-macos-desktop
 flutter config --enable-linux-desktop
 ```
 
-### 2. Build Rust backend
+---
 
-```bash
-cd frontend/rust
-cargo build
-```
-
-### 3. Run Flutter frontend
-
-#### Windows
+## Run locally
 
 ```bash
 cd frontend
@@ -95,53 +97,52 @@ flutter pub get
 flutter run -d windows
 ```
 
-#### macOS
-
-```bash
-cd frontend
-flutter pub get
-flutter run -d macos
-```
-
-#### Linux
-
-```bash
-cd frontend
-flutter pub get
-flutter run -d linux
-```
-
-> Make sure `.gguf` model files exist in the configured path before starting the app.
+For macOS/Linux, use -d macos or -d linux.
 
 ---
 
-## Using More Powerful Models (If Your RAM Allows)
+## Change model
 
-If your machine has enough RAM, you can swap the default chat model for a larger GGUF model to improve reasoning quality and response richness.
+1. Place your model in models/.
+2. Update paths in frontend/lib/services/anima_service.dart (chatModelPath, embeddingModelPath).
+3. Restart the app.
 
-### Practical RAM guidance (CPU inference)
+---
 
-- **8–16 GB RAM:** prefer lightweight/medium quantized models (`Q4_K_M`, `Q5_K_M`)
-- **16–32 GB RAM:** strong mid-size models (e.g. 7B–8B at higher-quality quantization)
-- **32+ GB RAM:** larger models become practical for local daily use
+## Repository structure
 
-### How to switch models
-
-1. Place your `.gguf` file inside `models/`.
-2. Update the model path used at initialization in `frontend/lib/services/anima_service.dart`:
-  - `chatModelPath: 'models/your_model.gguf'`
-3. Keep the embedding model path configured (for RAG memory retrieval).
-4. Re-run the app:
-
-```bash
-cd frontend
-flutter run -d windows
+```
+frontend/
+  lib/
+    screens/
+    services/
+    widgets/
+  rust/
+    src/
+      api/
+      ai.rs
+      db.rs
+docs/
+  API.md
+  ARCHITECTURE.md
+  IMPLEMENTATION_GUIDE.md
+  ROADMAP.md
+  database/SCHEMA.md
 ```
 
-Use the same command with `-d macos` or `-d linux` on those platforms.
+---
+
+## Documentation index
+
+- Architecture: docs/ARCHITECTURE.md
+- FRB API: docs/API.md
+- Implementation guide: docs/IMPLEMENTATION_GUIDE.md
+- Roadmap: docs/ROADMAP.md
+- DB schema: docs/database/SCHEMA.md
+- Executive summary: PROJECT_SUMMARY.md
 
 ---
 
 ## License
 
-MIT License
+MIT

@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _hasRequestedProactiveGreeting = false;
   String? _hoveredDrawerItem;
   bool _isCloseDrawerHovered = false;
+  bool _isOpenDrawerHovered = false;
 
   @override
   void initState() {
@@ -290,13 +291,54 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: Builder(
+          builder: (context) {
+            return MouseRegion(
+              onEnter: (_) {
+                setState(() {
+                  _isOpenDrawerHovered = true;
+                });
+              },
+              onExit: (_) {
+                setState(() {
+                  _isOpenDrawerHovered = false;
+                });
+              },
+              child: AnimatedScale(
+                duration: const Duration(milliseconds: 170),
+                curve: Curves.easeOutCubic,
+                scale: _isOpenDrawerHovered ? 1.06 : 1.0,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 170),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    color: _isOpenDrawerHovered
+                        ? Colors.white.withAlpha(12)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _isOpenDrawerHovered
+                          ? Colors.white.withAlpha(24)
+                          : Colors.transparent,
+                    ),
+                  ),
+                  child: IconButton(
+                    tooltip: tr(context, 'openMenu'),
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                    icon: const Icon(Icons.menu),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 30,
-              height: 30,
-              padding: const EdgeInsets.all(2),
+              width: 38,
+              height: 38,
+              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withAlpha(9),
@@ -351,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Center(
                         child: Image.asset(
                           'assets/logo.png',
-                          height: 54,
+                          height: 82,
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -443,7 +485,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         child: IconButton(
                           onPressed: () => Navigator.pop(context),
-                          tooltip: 'Close menu',
+                          tooltip: tr(context, 'closeMenu'),
                           icon: Icon(
                             Icons.arrow_back_ios_new,
                             size: 18,
@@ -461,28 +503,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF09090B), Color(0xFF0F1021), Color(0xFF1B1842)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Stack(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Column(
           children: [
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.05,
-                child: Image.asset('assets/web.png', fit: BoxFit.cover),
-              ),
-            ),
-            Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    children: [
+            Expanded(
+              child: ListView(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16),
+                children: [
                 if (_historyMessages.isNotEmpty)
                   Align(
                     alignment: Alignment.center,
@@ -567,12 +595,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Center(child: CircularProgressIndicator()),
                   ),
-                    ],
-                  ),
-                ),
-                MessageInput(onSend: _sendMessage, isLoading: isTyping),
-              ],
+                ],
+              ),
             ),
+            MessageInput(onSend: _sendMessage, isLoading: isTyping),
           ],
         ),
       ),

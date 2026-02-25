@@ -1,254 +1,101 @@
-# Anima Architecture - Local AI Biographer and Mentor
+# Anima Architecture
 
-## 1. Product Concept
+## 1) System Vision
 
-**Anima** is a cross-platform application (mobile and desktop) that acts as a personal biographer, journal, and AI mentor.
+Anima is a local personal-AI architecture that:
+- converses (chat),
+- remembers (RAG + persistent memory),
+- consolidates (sleep cycle),
+- and preserves user identity/language.
 
-Core characteristics:
-- **Long-Term Memory**: A 4-layer memory model inspired by cognitive architecture
-- **Privacy by Default**: All AI processing runs locally with no internet dependency
-- **100% Local Operation**: No automatic cross-device synchronization
-- **Encrypted Storage**: AES-256 database encryption
-- **Quantized Models**: llama.cpp-based local inference for efficiency
+Everything runs locally using Flutter (UI) + Rust (AI/data core).
 
-## 2. Core Technology Stack
+## 2) Current Stack
 
-### Frontend / UI
-- **Flutter**: Native builds for iOS, Android, Windows, and macOS from one Dart codebase
+- **Frontend**: Flutter
+- **Backend**: Rust
+- **Bridge**: `flutter_rust_bridge` v2 (FFI, no HTTP server)
+- **Local inference**: `llama.cpp` + `.gguf` models
+- **Persistence**: SQLite
 
-### Frontend-Backend Integration
-- **flutter_rust_bridge (FRB) v2**: FFI bridge between Dart and Rust
-- **Generated bindings (current)**: frontend/lib/api.dart and frontend/lib/frb_generated*.dart
-- **Initialization**: RustLib.init() during Flutter app startup
-- **Current exposed API**: save user message and fetch recent memories
+## 3) Main Components
 
-### Local AI Runtime
-- **llama.cpp**: Quantized model runtime with native acceleration
-  - Metal (macOS)
-  - GPU/NPU (Windows, Android)
-  - Neural Engine (iOS)
+### Frontend (`frontend/lib`)
 
-### Language Models (LLM)
-- Llama-3-8B-Instruct (GGUF) - primary
-- Phi-3-mini - lightweight alternative
-- Gemma-2B - low-resource devices
+- `screens/`: onboarding, home, memory, settings, brain.
+- `services/anima_service.dart`: FRB call layer.
+- `services/translation_service.dart`: i18n and language normalization.
+- `widgets/`: chat bubbles, message input.
 
-### Database and Vector Storage
-- **SQLite**: Primary local data store
-- **sqlite-vec**: Vector storage and similarity search
-- **SQLCipher**: Full-database AES-256 encryption
+### Backend (`frontend/rust/src`)
 
-### Security and Key Storage
-- **SQLCipher**: Data-at-rest encryption
-- **Secure Enclave** (iOS): Native key management
-- **Keychain** (macOS): Credential storage
-- **Android Keystore**: Key management
+- `api/simple.rs`: public API exposed through FRB.
+- `ai.rs`: prompting, streaming, embeddings, sleep cycle.
+- `db.rs`: SQLite schema + CRUD + semantic retrieval.
 
-### Background Processing
-- **WorkManager** (Android)
-- **BackgroundTasks** (iOS)
-- **Desktop scheduling**: Windows Task Scheduler / cron
+## 4) Operational Data Model
 
-## 3. Memory Architecture (4 Layers)
+The current database uses 4 main tables:
+- `messages` → chat history.
+- `memories` → embedding per message.
+- `profile_traits` → consolidated user traits.
+- `config` → name, language, extra prompt settings.
 
-### Table 1: episodic_memory
-**Purpose**: Raw journal/chat events and short-term memory
+## 5) Key Flows
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | TEXT (PK) | Unique UUID |
-| timestamp | DATETIME | ISO 8601 timestamp |
-| role | TEXT | 'user' or 'ai' |
-| content | TEXT | Exact message content |
-| embedding | VECTOR | Vector representation (768D) |
-| processed | BOOLEAN | false by default, true after sleep cycle |
-| metadata | JSON | Tags, sentiment, extra context |
+### A. Memory-Augmented Chat (RAG)
 
-**Indexes**:
-- PRIMARY KEY (id)
-- INDEX ON timestamp
-- INDEX ON processed
-- VECTOR INDEX ON embedding
+1. User message arrives.
+2. It is stored in `messages`.
+3. Embedding is generated.
+4. Similar memories are retrieved from `memories` using cosine similarity.
+5. Context + profile + language are assembled.
+6. LLM responds (sync or stream).
+7. Response and related memory are persisted.
 
-### Table 2: semantic_memory
-**Purpose**: Consolidated knowledge and extracted patterns
+### B. Sleep Cycle
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | TEXT (PK) | Unique UUID |
-| topic | TEXT | Topic category (work, health, relationships, etc.) |
-| insight | TEXT | Insight extracted from episodic memory |
-| importance_score | INTEGER | 1-10 relevance score |
-| embedding | VECTOR | Vector representation |
-| source_episodes | TEXT[] | Source episodic message IDs |
-| confidence_score | FLOAT | Confidence score (0.0-1.0) |
-| last_updated | DATETIME | Last update timestamp |
+1. Collects raw memories.
+2. Runs JSON consolidation in backend.
+3. Merges/updates `profile_traits`.
+4. Purges raw memory when appropriate.
 
-**Indexes**:
-- PRIMARY KEY (id)
-- INDEX ON topic
-- INDEX ON importance_score
-- VECTOR INDEX ON embedding
+### C. Language Persistence
 
-### Table 3: user_identity
-**Purpose**: Long-term user profile
+1. User selects language in onboarding.
+2. It is saved in `config` (`app_language`).
+3. UI and LLM prompt are aligned to that persisted language.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | TEXT (PK) | Unique UUID |
-| trait_name | TEXT | e.g. profession, core fear, hobbies |
-| value | TEXT | Trait value |
-| confidence_score | INTEGER | Confidence (0-100) |
-| category | TEXT | profession, personality, fear, hobby, goal |
-| evidence_count | INTEGER | Number of supporting episodes |
-| last_reinforced | DATETIME | Last reinforcement time |
+## 6) Runtime Architecture
 
-**Indexes**:
-- PRIMARY KEY (id)
-- UNIQUE INDEX (trait_name, category)
-- INDEX ON confidence_score
+There is no remote server. The flow is in-process:
 
-### Table 4: ai_self_model
-**Purpose**: AI behavior and personality evolution
+`Flutter UI` → `FRB bindings` → `Rust API` → `AI + DB local`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | TEXT (PK) | Unique UUID |
-| parameter | TEXT | e.g. tone, empathy level, humor |
-| current_state | TEXT | Current parameter value |
-| delta_from_previous | TEXT | Change from previous state |
-| reinforcement_count | INTEGER | Number of reinforcements |
-| last_updated | DATETIME | Last update timestamp |
+This minimizes network roundtrip latency and preserves local privacy.
 
-**Indexes**:
-- PRIMARY KEY (id)
-- UNIQUE INDEX (parameter)
-
-## 4. Main Workflows
-
-### A) Chat Interaction (Local RAG)
+## 7) Folder Structure (Summary)
 
 ```
-1. User sends a message
-2. Generate embedding for the message
-3. Run vector similarity search on:
-   - episodic_memory (recent context)
-   - semantic_memory (longer-term knowledge)
-4. Build prompt context with:
-   - user identity
-   - AI self model
-   - top relevant episodes/insights
-5. LLM generates response
-6. Store both user and AI messages in episodic_memory
+frontend/
+   lib/
+      main.dart
+      screens/
+      services/
+      widgets/
+   rust/
+      src/
+         api/simple.rs
+         ai.rs
+         db.rs
+docs/
+   API.md
+   ARCHITECTURE.md
+   IMPLEMENTATION_GUIDE.md
+   ROADMAP.md
+   database/SCHEMA.md
 ```
 
-### B) Sleep Cycle (Memory Consolidation)
+---
 
-```
-Trigger: scheduled time + suitable device state
-1. Fetch episodic entries where processed == false
-2. Group entries by topic clusters
-3. Run reflection prompt on grouped conversations
-4. Extract:
-   - semantic insights
-   - user identity updates
-   - AI self model updates
-5. Persist updates
-6. Mark processed episodes as true
-```
-
-### C) Context Retrieval During Chat
-
-```
-1. Generate query embedding
-2. Retrieve top episodic and semantic matches
-3. Rank by relevance and recency
-4. Inject into LLM context
-5. Use as working memory for the final response
-```
-
-## 5. Prompt System
-
-### Main System Prompt (Template)
-
-```
-You are Anima, a personal AI companion—biographer, mentor, and confidant.
-Your goals:
-- Listen and understand deeply
-- Remember meaningful life patterns
-- Offer personalized guidance and reflection
-
-[USER IDENTITY]
-{user_identity}
-
-[CURRENT AI PERSONALITY]
-{ai_self_model}
-
-[RECENT CONTEXT]
-{relevant_episodes}
-
-[PAST INSIGHTS]
-{relevant_insights}
-```
-
-### Sleep-Cycle Reflection Prompt (Template)
-
-```
-Reflect on these conversations and extract:
-1. Patterns
-2. User traits
-3. Personal evolution
-4. Recommended AI interaction adjustments
-
-[CONVERSATIONS]
-{unprocessed_episodes}
-```
-
-## 6. Privacy and Security Considerations
-
-- **Data at rest**: SQLCipher with AES-256
-- **No cloud transmission**: Data remains on device
-- **Key management**: Native secure storage per platform
-- **Secure deletion**: Full local history reset options
-- **Process isolation**: Local-only communication between app components
-
-## 7. Directory Structure
-
-```
-anima/
-├── backend/
-│   ├── src/
-│   │   ├── database/
-│   │   │   ├── db_manager.rs
-│   │   │   └── vector_search.rs
-│   │   ├── models/
-│   │   │   ├── memory.rs
-│   │   │   └── identity.rs
-│   │   ├── services/
-│   │   │   ├── ai.rs
-│   │   │   ├── chat.rs
-│   │   │   └── sleep_cycle.rs
-│   │   ├── api.rs
-│   │   └── main.rs
-│   └── Cargo.toml
-├── frontend/
-│   ├── lib/
-│   │   ├── api.dart
-│   │   ├── frb_generated.dart
-│   │   ├── frb_generated.io.dart
-│   │   ├── frb_generated.web.dart
-│   │   ├── screens/
-│   │   ├── widgets/
-│   │   ├── services/
-│   │   └── main.dart
-│   └── pubspec.yaml
-├── docs/
-│   ├── database/
-│   ├── API.md
-│   ├── ARCHITECTURE.md
-│   ├── IMPLEMENTATION_GUIDE.md
-│   └── ROADMAP.md
-└── README.md
-```
-
-Last updated: February 24, 2026
+Last updated: February 25, 2026

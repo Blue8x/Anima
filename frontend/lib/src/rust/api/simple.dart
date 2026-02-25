@@ -26,6 +26,15 @@ Stream<String> sendMessageStream(
     RustLib.instance.api.crateApiSimpleSendMessageStream(
         message: message, temperature: temperature, maxTokens: maxTokens);
 
+Future<double> getTemperature() =>
+    RustLib.instance.api.crateApiSimpleGetTemperature();
+
+Future<bool> setTemperature({required double temperature}) =>
+    RustLib.instance.api.crateApiSimpleSetTemperature(temperature: temperature);
+
+Future<String> exportBrain() =>
+    RustLib.instance.api.crateApiSimpleExportBrain();
+
 Future<bool> saveAssistantMessage({required String message}) =>
     RustLib.instance.api.crateApiSimpleSaveAssistantMessage(message: message);
 

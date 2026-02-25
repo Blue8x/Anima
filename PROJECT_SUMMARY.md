@@ -1,98 +1,66 @@
 # Project Summary
 
-## Overview
+## Executive Summary
 
-**Anima** is now a local cognitive architecture: a private digital companion that runs entirely on-device, remembers what matters, and evolves through conversational memory and sleep-cycle consolidation.
+**Anima** is a local AI companion focused on personal continuity: conversation + memory + cognitive consolidation. The system runs on Flutter + Rust, with inference and persistence on the user’s device.
 
-This project is no longer a scaffold-only prototype; it has a functional Rust + Flutter product loop with local inference, RAG memory retrieval, profile consolidation, multi-language UX, and reset/recovery controls.
+The product is already in a strong functional V1 state: streaming chat, semantic memory, cognitive profile, advanced i18n, premium UX, and recovery controls.
 
-## Current Product State
+## Product Objective
 
-### Backend (Rust, `frontend/rust`)
-- Local LLM inference via `llama.cpp` with dual runtime design:
-  - chat runtime
-  - embeddings runtime (`all-MiniLM-L6-v2.gguf`)
-- Semantic retrieval pipeline:
-  - per-message embedding generation
-  - storage in `memories` (SQLite BLOB)
-  - cosine similarity top-k retrieval with threshold filtering
-- Cognitive persistence and profile model:
-  - episodic raw memories (`memories`)
-  - profile traits (`profile_traits`)
-  - user configuration (`config`: name, language, prompt extras)
-- Sleep cycle implemented with JSON consolidation and profile fusion.
-- Language steering in chat system prompt using persisted app language.
-- Factory reset backend endpoint implemented:
-  - `factory_reset() -> Result<bool, String>`
-  - clears `memories`, `profile_traits`, and `config`.
+Move from a stateless chatbot to a continuity-based companion.
 
-### API / Bridge (FRB)
-- FRB v2 active and regenerated against current Rust API.
-- Core endpoints available for:
-  - chat send/history
-  - memory list/delete
-  - sleep cycle execution
-  - profile trait CRUD-lite (add/list/clear)
-  - app language and user name
-  - core prompt settings
-  - database export
-  - factory reset
+Anima is designed to:
+- remember relevant information across sessions,
+- consolidate user patterns into a useful profile,
+- keep tone/language coherence,
+- and preserve local privacy.
 
-### Frontend (Flutter)
-- Onboarding flow with:
-  - user identity capture
-  - optional seed trait
-  - language selector (Español, Inglés, Chino, Árabe, Ruso)
-- Home chat UX with translated drawer/navigation labels.
-- Translation service (`tr(key)`) with Spanish fallback.
-- Digital Brain screen with grouped cognitive nodes.
-- Sleep-cycle UX upgraded:
-  - non-dismissible modal
-  - fake animated progress
-  - dynamic stage messages
-  - smooth fade/scale modal transition
-  - controlled shutdown when processing completes.
-- Settings/Command Center includes:
-  - core prompt extras
-  - database export
-  - **Factory Reset (double-confirmation destructive flow)**
-  - redirect to onboarding using `pushAndRemoveUntil`.
+## Current Technical State
 
-## Key Delivered Capabilities
+### 1) Rust Backend (frontend/rust)
 
-1. **Local-first cognition**
-   - Inference, memory, and personalization fully local.
+- Dual AI runtime (chat + embeddings).
+- SQLite persistence:
+  - messages (history),
+  - memories (embedding per message),
+  - profile_traits (consolidated profile),
+  - config (name, language, prompt extras).
+- Semantic retrieval through cosine similarity.
+- Sleep cycle to consolidate raw memories into traits.
+- Prompt steering based on persisted language.
+- DB export and transactional factory reset.
 
-2. **Dual memory model**
-   - Episodic recall (RAG context) + semantic profile consolidation.
+### 2) API and Bridge (flutter_rust_bridge)
 
-3. **Autonomous sleep cycle**
-   - Processes daily memories into long-term traits before shutdown.
+- FRB v2 is operational and synchronized.
+- Main surface: chat (sync + stream), memory, profile, config, sleep cycle, export, and reset.
 
-4. **Identity consistency**
-   - Fixed base soul prompt + user augmentations.
+### 3) Flutter Frontend
 
-5. **Multilingual operation**
-   - UI and assistant behavior aligned to selected app language.
+- Multi-step onboarding with wheel-based language selector + extra menu.
+- Home chat with streaming and final-response persistence.
+- Premium drawer/menus with microinteractions.
+- Settings, Memory, and Brain screens with coherent dark style.
+- Global i18n with code normalization and robust fallback.
 
-6. **Safety and recovery controls**
-   - One-click export + destructive full reset with double confirmation.
+## Delivered Key Capabilities
 
-## Documentation Alignment
+1. **Local privacy by design**.
+2. **Contextual memory during conversation**.
+3. **Cognitive consolidation through Sleep Cycle**.
+4. **Identity/tone control through base prompt + extras**.
+5. **Persistent multilingual experience**.
+6. **Safe critical operations (export/reset)**.
 
-The following docs are already aligned to the current architecture and feature set:
-- `README.md`
-- `docs/ROADMAP.md`
-- `docs/API.md`
+## Recommended Next Focus Areas
 
-## Near-Term Priorities
-
-1. Security hardening and key-management strategy.
-2. Broader platform QA/performance tuning.
-3. Release preparation (stability pass + packaging).
+- Release hardening (cross-platform QA, performance, visual regression).
+- E2E test coverage for onboarding/i18n/streaming.
+- Distribution (installers, release notes, public Anima.ai web).
 
 ---
 
-**Status:** Phase 5 implemented (cognition + i18n + reset UX), entering Phase 6 hardening
+**Status:** Functional V1 + visual polish completed  
 **Last Updated:** February 25, 2026
 

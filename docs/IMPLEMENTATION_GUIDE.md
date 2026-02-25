@@ -1,287 +1,118 @@
 # Implementation Guide - Anima
 
-## Getting Started
+This guide describes how to develop and maintain Anima using the **current** project structure.
 
-This guide covers the setup and development of the Anima project across backend and frontend.
+## 1) Prerequisites
 
-## Backend Setup (Rust)
+- Flutter SDK (Dart included)
+- Rust (`rustup`, `cargo`)
+- `.gguf` models in `models/`
 
-### Prerequisites
-- Rust 1.70+ ([Install Rust](https://rustup.rs/))
-- Cargo (included with Rust)
-
-### Building the Backend
+Recommended for desktop:
 
 ```bash
-cd backend
-cargo build --release
+flutter config --enable-windows-desktop
+flutter config --enable-macos-desktop
+flutter config --enable-linux-desktop
 ```
 
-### Running Tests
-
-```bash
-cargo test
-```
-
-### Running the Backend
-
-```bash
-cargo run --release
-```
-
-The backend will start and initialize the SQLite database with AES-256 encryption.
-
-## Frontend Setup (Flutter)
-
-### Prerequisites
-- Flutter 3.10+ ([Install Flutter](https://flutter.dev/docs/get-started/install))
-- Dart >= 3.3 (included with Flutter)
-
-### Getting Dependencies
+## 2) Run the Project
 
 ```bash
 cd frontend
 flutter pub get
-```
-
-### Running the App
-
-#### iOS
-```bash
-flutter run -d iphone
-# or for simulator:
-open -a Simulator && flutter run
-```
-
-#### Android
-```bash
-flutter run -d android
-# or list devices:
-flutter devices
-```
-
-#### macOS
-```bash
-flutter run -d macos
-```
-
-#### Windows
-```bash
-cd backend
-cargo build --release
-
-cd ../frontend
 flutter run -d windows
 ```
 
-### Flutter Rust Bridge (FRB v2)
+Also supports `-d macos` and `-d linux`.
 
-This project uses `flutter_rust_bridge` v2.
+## 3) Build/Check Rust Backend
 
-- `flutter_rust_bridge.yaml` points Dart output to `frontend/lib`
-- Generated files currently used by the app:
-    - `frontend/lib/api.dart`
-    - `frontend/lib/frb_generated.dart`
-    - `frontend/lib/frb_generated.io.dart`
-    - `frontend/lib/frb_generated.web.dart`
-- FRB initialization happens in `frontend/lib/main.dart` via `await RustLib.init()`
+```bash
+cd frontend/rust
+cargo check
+cargo build
+```
 
-If you change Rust API signatures, regenerate bindings:
+## 4) FRB Flow
+
+Anima uses `flutter_rust_bridge` v2.
+
+- Rust API: `frontend/rust/src/api/simple.rs`
+- Dart service wrapper: `frontend/lib/services/anima_service.dart`
+
+If you change Rust signatures, regenerate bindings:
 
 ```bash
 flutter_rust_bridge_codegen generate
 ```
 
-### Building for Release
-
-#### iOS
-```bash
-flutter build ios --release
-# Then open in Xcode and build/archive
-```
-
-#### Android
-```bash
-flutter build apk --release
-# or AAB (Google Play):
-flutter build appbundle --release
-```
-
-#### macOS
-```bash
-flutter build macos --release
-```
-
-#### Windows
-```bash
-flutter build windows --release
-```
-
-## Architecture Overview
-
-### Backend Flow
+## 5) Relevant Structure
 
 ```
-User Message
-    ↓
-Chat Service
-    ├─→ Generate Embedding
-    ├─→ Vector Search (episodic_memory, semantic_memory)
-    ├─→ Compile Context
-    ├─→ Send to LLM
-    └─→ Save Response
-    
-    ↓
-Memory Consolidation (Sleep Cycle)
-    ├─→ Fetch Unprocessed Episodes
-    ├─→ Send to LLM with Reflection Prompt
-    ├─→ Extract Insights
-    ├─→ Update user_identity
-    └─→ Update ai_self_model
+frontend/
+    lib/
+        main.dart
+        screens/
+        services/
+        widgets/
+    rust/
+        src/
+            api/simple.rs
+            ai.rs
+            db.rs
 ```
 
-### Frontend Architecture
+## 6) Development Conventions
 
-```
-Flutter App
-    ├─ Screens
-    │   └─ HomeScreen (Chat Interface)
-    ├─ Services
-    │   └─ AnimaService (FRB v2 calls to Rust backend)
-    ├─ Widgets
-    │   ├─ ChatBubble
-    │   └─ MessageInput
-    └─ FRB Bindings
-        ├─ api.dart
-        └─ frb_generated*.dart
-```
+### Add a New Endpoint
 
-## Core Components
+1. Implement function in `frontend/rust/src/api/simple.rs`.
+2. Add logic in `ai.rs` and/or `db.rs` if needed.
+3. Regenerate FRB.
+4. Expose wrapper in `AnimaService`.
+5. Integrate into screen/widget.
+6. Update `docs/API.md`.
 
-### 1. Database (backend/src/database/)
+### Add a New Screen
 
-- **db_manager.rs**: SQLite operations with encryption
-- **vector_search.rs**: Cosine similarity search for embeddings
+1. Create it in `frontend/lib/screens/`.
+2. Connect navigation (usually from `home_screen.dart`).
+3. Keep premium dark style consistent.
+4. Add i18n keys if new text is introduced.
 
-### 2. Models (backend/src/models/)
+### Add a Translation
 
-- **memory.rs**: Core data structures (EpisodicMemory, SemanticMemory, etc.)
-- **identity.rs**: User profile models
+1. Edit `frontend/lib/services/translation_service.dart`.
+2. Add keys for each language.
+3. Normalize code/aliases if it is a new language.
+4. Verify fallback (`ES` and legacy keys).
 
-### 3. Services (backend/src/services/)
-
-- **chat.rs**: Message processing and RAG
-- **sleep_cycle.rs**: Memory consolidation
-- **ai.rs**: AI personality management
-
-## Configuration
-
-### Backend Configuration
-
-Create `backend/.env`:
-```env
-DATABASE_PASSWORD=your_secure_password
-LLM_MODEL_PATH=/path/to/model.gguf
-EMBEDDING_MODEL_PATH=/path/to/embedding_model.onnx
-SLEEP_CYCLE_TIME=03:00
-LOG_LEVEL=info
-```
-
-### Frontend Configuration
-
-Create `frontend/.env`:
-```env
-BACKEND_IPC_PATH=/tmp/anima.sock
-MAX_MESSAGE_HISTORY=100
-VECTOR_SEARCH_LIMIT=5
-```
-
-## Development Workflow
-
-### Adding a New Data Model
-
-1. Add to `backend/src/models/memory.rs`
-2. Add database table in `backend/src/database/db_manager.rs`
-3. Add CRUD operations
-4. Mirror in Flutter models
-
-### Adding a New Service Method
-
-1. Define in appropriate service file (`backend/src/services/`)
-2. Add to API documentation
-3. Implement Flutter service call
-4. Add UI to interact with it
-
-### Running Locally
-
-Build Rust library:
-```bash
-cd backend
-cargo build --release
-```
-
-Run Flutter app:
-```bash
-cd frontend
-flutter run -d windows
-```
-
-## Testing
-
-### Backend Tests
+## 7) Recommended Quick QA
 
 ```bash
-cd backend
-cargo test --all
+# Flutter (analysis)
+flutter analyze
+
+# Rust (backend)
+cd frontend/rust
+cargo check
 ```
 
-### Frontend Tests
+Minimum manual flows:
+- Onboarding (main language + `more`).
+- Chat streaming + final persistence.
+- Sleep cycle.
+- Factory reset.
 
-```bash
-cd frontend
-flutter test
-```
+## 8) Release Checklist (Summary)
 
-## Deployment
+1. Verify `.gguf` models and paths.
+2. Regenerate icons (`flutter_launcher_icons`) if branding changed.
+3. Review docs (`README`, `API`, `ROADMAP`, `SCHEMA`).
+4. `git add -A && git commit && git push`.
 
-### Backend Deployment
+---
 
-1. Build release binary: `cargo build --release`
-2. Binary at: `target/release/anima-core`
-3. Bundle with assets and models
-4. Encrypt database with strong password
-
-### Frontend Deployment
-
-See Flutter documentation for your platform:
-- [iOS Deployment](https://flutter.dev/docs/deployment/ios)
-- [Android Deployment](https://flutter.dev/docs/deployment/android)
-- [macOS Deployment](https://flutter.dev/docs/deployment/macos)
-- [Windows Deployment](https://flutter.dev/docs/deployment/windows)
-
-## Troubleshooting
-
-### Database Connection Issues
-- Check password in `.env`
-- Ensure database file has proper permissions
-- Check SQLCipher configuration
-
-### Vector Search Not Working
-- Ensure embeddings are generated with correct dimensionality (768)
-- Check sqlite-vec extension is loaded
-- Verify vector search SQL syntax
-
-### LLM Not Responding
-- Check model file exists and is in GGUF format
-- Verify llama.cpp is compiled correctly
-- Check system resources (RAM, GPU)
-
-## Next Steps
-
-1. Implement llama.cpp integration for LLM
-2. Implement embedding generation (Sentence-BERT)
-3. Extend Rust API surface and regenerate FRB bindings
-4. Implement sleep cycle scheduler
-5. Add UI for identity management
-6. Add export/backup functionality
+Last updated: February 25, 2026
 

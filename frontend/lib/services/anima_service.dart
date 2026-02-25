@@ -29,9 +29,10 @@ class AnimaService {
     _logger.i('processMessage start');
     _logger.d('processMessage payload length=${text.length}');
     try {
+      final configuredTemperature = await getTemperature();
       final response = await rust_simple.sendMessage(
         message: text,
-        temperature: 0.7,
+        temperature: configuredTemperature,
         maxTokens: 512,
       );
       stopwatch.stop();
@@ -52,9 +53,14 @@ class AnimaService {
   Stream<String> streamMessage(String text) {
     _logger.i('streamMessage start');
     _logger.d('streamMessage payload length=${text.length}');
-    return rust_simple.sendMessageStream(
+    return _streamMessageInternal(text);
+  }
+
+  Stream<String> _streamMessageInternal(String text) async* {
+    final configuredTemperature = await getTemperature();
+    yield* rust_simple.sendMessageStream(
       message: text,
-      temperature: 0.7,
+      temperature: configuredTemperature,
       maxTokens: 512,
     );
   }
@@ -237,6 +243,42 @@ class AnimaService {
       return saved;
     } catch (e, st) {
       _logger.e('setAppLanguage failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<double> getTemperature() async {
+    _logger.i('getTemperature start');
+    try {
+      final temperature = await rust_simple.getTemperature();
+      _logger.i('getTemperature success value=$temperature');
+      return temperature;
+    } catch (e, st) {
+      _logger.e('getTemperature failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<bool> setTemperature(double temperature) async {
+    _logger.i('setTemperature start value=$temperature');
+    try {
+      final saved = await rust_simple.setTemperature(temperature: temperature);
+      _logger.i('setTemperature result=$saved');
+      return saved;
+    } catch (e, st) {
+      _logger.e('setTemperature failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<String> exportBrain() async {
+    _logger.i('exportBrain start');
+    try {
+      final payload = await rust_simple.exportBrain();
+      _logger.i('exportBrain success length=${payload.length}');
+      return payload;
+    } catch (e, st) {
+      _logger.e('exportBrain failed', error: e, stackTrace: st);
       rethrow;
     }
   }

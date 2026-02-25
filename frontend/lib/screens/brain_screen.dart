@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/anima_service.dart';
+import '../services/translation_service.dart';
 import '../src/rust/db.dart';
 
 class BrainScreen extends StatefulWidget {
@@ -86,10 +87,11 @@ class _BrainScreenState extends State<BrainScreen> {
         SnackBar(content: Text('Error cargando cerebro digital: $e')),
       );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -138,6 +140,7 @@ class _BrainScreenState extends State<BrainScreen> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
     try {
       final animaService = context.read<AnimaService>();
@@ -303,7 +306,7 @@ class _BrainScreenState extends State<BrainScreen> {
       appBar: AppBar(
         leading: _buildAnimatedAppBarIconButton(
           icon: Icons.arrow_back_ios_new,
-          tooltip: 'Back',
+          tooltip: tr(context, 'back'),
           onPressed: () => Navigator.of(context).maybePop(),
           hovered: _isBackHovered,
           onHoverChanged: (value) {
@@ -316,7 +319,7 @@ class _BrainScreenState extends State<BrainScreen> {
         actions: [
           _buildAnimatedAppBarIconButton(
             icon: Icons.delete_outline,
-            tooltip: 'Factory Reset Cognitivo',
+            tooltip: tr(context, 'factoryResetCognitive'),
             onPressed: _confirmFactoryReset,
             hovered: _isResetHovered,
             onHoverChanged: (value) {

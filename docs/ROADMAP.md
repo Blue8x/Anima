@@ -1,104 +1,66 @@
 # Project Roadmap - Anima
 
-## Phase 1: Core Infrastructure (Completed)
+## Phase 1 — Foundation (Completed)
 
-### Backend
-- [x] SQLite schema and initialization
-- [x] Core data models (messages, memories, profile, config)
-- [x] FRB v2 bridge setup
+- [x] Flutter app bootstrap.
+- [x] Rust backend integration via FRB v2.
+- [x] SQLite base schema (`messages`, `memories`, `config`, `profile_traits`).
 
-### Frontend
-- [x] Flutter scaffolding and app bootstrap
-- [x] Service layer and FRB integration
-- [x] Core chat UI and reusable widgets
+## Phase 2 — Local AI Core (Completed)
 
-## Phase 2: Local LLM Integration (Completed)
+- [x] `llama.cpp` local inference runtime.
+- [x] Chat response generation.
+- [x] Runtime controls (`temperature`, `max_tokens`).
 
-### Backend
-- [x] `llama.cpp` runtime initialization
-- [x] Local chat inference pipeline
-- [x] Runtime generation controls (`temperature`, `max_tokens`)
+## Phase 3 — Memory + RAG (Completed)
 
-### Frontend
-- [x] End-to-end chat connected to Rust inference
+- [x] Embedding generation runtime.
+- [x] Embedding persistence in `memories`.
+- [x] Cosine similarity retrieval with threshold.
+- [x] Prompt context injection.
 
-## Phase 3: RAG + Semantic Memory (Completed)
+## Phase 4 — Product Surfaces (Completed)
 
-### Backend
-- [x] Embedding generation runtime (`all-MiniLM-L6-v2.gguf`)
-- [x] Embedding persistence in SQLite (`memories` BLOB)
-- [x] Cosine similarity top-k retrieval + threshold filtering
-- [x] Prompt context injection with relevant memories
+- [x] Home chat UI.
+- [x] Memory browser.
+- [x] Settings / Command Center.
+- [x] Digital Brain screen.
 
-### Frontend
-- [x] Message flow with persisted long-term context
+## Phase 5 — Cognitive Cycle + i18n (Completed)
 
-## Phase 4: UX + Control Surfaces (Completed)
+- [x] Sleep cycle consolidation JSON.
+- [x] Profile consolidation in `profile_traits`.
+- [x] Persisted language (`app_language`) and LLM steering.
+- [x] Multilingual onboarding with extended selector.
 
-### Backend
-- [x] Config endpoints (core prompt, user name, export)
-- [x] Profile trait management endpoints
+## Phase 6 — Streaming + Reliability (Completed)
 
-### Frontend
-- [x] Memory Explorer
-- [x] Settings / Command Center
-- [x] Mirror and Digital Brain screens
-- [x] Onboarding entry flow
+- [x] Token-by-token chat streaming.
+- [x] Final assistant message persistence.
+- [x] Full factory reset with double confirmation.
+- [x] Database export.
 
-## Phase 5: Cognitive Cycle + Internationalization (Core Completed)
+## Phase 7 — Premium UX (Completed)
 
-### Backend
-- [x] Sleep cycle JSON consolidation
-- [x] Profile fusion (current profile + raw memories)
-- [x] Raw episodic memory purge after consolidation
-- [x] App language persistence (`app_language`)
-- [x] Chat system prompt language steering
+- [x] Premium dark visual redesign (home/onboarding/menus).
+- [x] Unified logo across app, drawer, chat empty state, and app icons.
+- [x] Microinteractions (hover/scale/transitions) in drawer and app bars.
 
-### Frontend
-- [x] Language selector in onboarding (Inglés, Español, Chino, Árabe, Ruso)
-- [x] Dynamic UI translation (`tr(key)` + Spanish fallback)
-- [x] i18n applied to drawer, onboarding, chat input, relative timestamps
+## Phase 8 — Hardening & Release (Next)
 
-## Phase 6: Privacy & Security (Next)
+- [ ] Full E2E QA for onboarding/i18n/streaming/reset.
+- [ ] Performance profiling on target hardware.
+- [ ] Visual regression checklist per screen.
+- [ ] Packaging final release artifacts.
 
-- [ ] Secure key management hardening
-- [ ] Biometric unlock flow
-- [ ] Encryption verification and secure deletion tests
-- [ ] Threat-model and privacy compliance pass
+## Future Exploration
 
-## Phase 7: Polish & Release
+- [ ] Local voice support (ASR/TTS).
+- [ ] Multimodal memory.
+- [ ] Optional encrypted cross-device sync.
+- [ ] Optional integrations (calendar/notes).
 
-- [ ] Performance optimization and latency tuning
-- [ ] End-to-end QA and stability fixes
-- [ ] Documentation final pass
-- [ ] Beta testing and public release readiness
+---
 
-## Research & Exploration
-
-### AI/ML
-- [ ] Fine-tuning LLM on user patterns (optional)
-- [x] Multi-language support (UI + LLM steering)
-- [ ] Voice input/output capability
-- [ ] Multimodal embeddings (text + image support)
-
-### Features
-- [ ] Cross-device sync (optional - privacy trade-off)
-- [ ] Cloud backup (optional - privacy trade-off)
-- [ ] Collaborative features (optional - group dynamics)
-- [ ] Integration with calendars/notes apps
-
-### Performance
-- [ ] Quantization optimization
-- [ ] Mobile-specific model optimization
-- [ ] Battery impact analysis
-- [ ] Storage footprint reduction
-
-## Success Metrics
-
-- User retention rate (target: 80% week 1, 50% month 1)
-- Average daily usage (target: 10+ min/day)
-- Memory quality (user satisfaction with recalled context)
-- Response latency (target: <2 seconds on average device)
-- Storage footprint (target: <1GB)
-- Battery impact (target: <5% per hour of usage)
+Last updated: February 25, 2026
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/anima_service.dart';
+import '../services/translation_service.dart';
 import '../src/rust/db.dart';
 
 class MemoryBrowserScreen extends StatefulWidget {
@@ -45,7 +46,7 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
             ),
           ),
           child: IconButton(
-            tooltip: 'Back',
+            tooltip: tr(context, 'back'),
             onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.arrow_back_ios_new, size: 18),
           ),
@@ -78,10 +79,11 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Error cargando memorias: $e')));
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -160,6 +162,7 @@ class _MemoryBrowserScreenState extends State<MemoryBrowserScreen> {
                               ),
                               subtitle: Text(memory.createdAt),
                               trailing: IconButton(
+                                tooltip: tr(context, 'deleteMemory'),
                                 icon: const Icon(Icons.delete_outline, color: Colors.red),
                                 onPressed: () => _deleteMemory(memory),
                               ),

@@ -1,10 +1,11 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../services/anima_service.dart';
+import '../services/translation_service.dart';
 import 'onboarding_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -15,143 +16,219 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final TextEditingController _corePromptController = TextEditingController();
   bool _isLoading = true;
-  bool _isSavingPrompt = false;
   bool _isExporting = false;
   bool _isFactoryResetting = false;
   bool _isBackHovered = false;
 
-  Widget _buildAnimatedAppBarBackButton() {
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() {
-          _isBackHovered = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          _isBackHovered = false;
-        });
-      },
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 170),
-        curve: Curves.easeOutCubic,
-        scale: _isBackHovered ? 1.06 : 1.0,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 170),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: _isBackHovered ? Colors.white.withAlpha(12) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: _isBackHovered
-                  ? Colors.white.withAlpha(24)
-                  : Colors.transparent,
-            ),
-          ),
-          child: IconButton(
-            tooltip: 'Back',
-            onPressed: () => Navigator.of(context).maybePop(),
-            icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          ),
-        ),
-      ),
-    );
-  }
+  String _userName = '';
+  String _selectedLanguage = 'ES';
+  double _temperature = 0.7;
+
+  static const Map<String, String> _languageLabels = {
+    'ES': 'Español',
+    'EN': 'English',
+    'CH': '中文',
+    'AR': 'العربية',
+    'RU': 'Русский',
+    'JP': '日本語',
+    'DE': 'Deutsch',
+    'FR': 'Français',
+    'HI': 'हिन्दी',
+    'PT': 'Português',
+    'BN': 'বাংলা',
+    'UR': 'اردو',
+    'ID': 'Bahasa Indonesia',
+    'KO': '한국어',
+    'VI': 'Tiếng Việt',
+    'IT': 'Italiano',
+    'TR': 'Türkçe',
+    'TA': 'தமிழ்',
+    'TH': 'ไทย',
+    'PL': 'Polski',
+  };
 
   @override
   void initState() {
     super.initState();
-    _loadCorePrompt();
+    _loadSettings();
   }
 
-  Future<void> _loadCorePrompt() async {
+  Future<void> _loadSettings() async {
     try {
       final animaService = context.read<AnimaService>();
-      final prompt = await animaService.getCorePrompt();
-      if (!mounted) return;
-      _corePromptController.text = prompt;
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error cargando Core Prompt: $e')),
-      );
-    } finally {
+      final userName = await animaService.getUserName();
+      final dbLanguage = await animaService.getAppLanguage();
+      final normalizedLanguage = TranslationService.normalizeLanguageCode(dbLanguage);
+      final temperature = await animaService.getTemperature();
+
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
+        _userName = userName;
+        _selectedLanguage = normalizedLanguage;
+        _temperature = temperature;
       });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error cargando ajustes: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _saveCorePrompt() async {
-    setState(() {
-      _isSavingPrompt = true;
-    });
+  Future<void> _showEditNameDialog() async {
+    final controller = TextEditingController(text: _userName);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF18181B),
+          title: const Text('Cambiar nombre'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              hintText: 'Tu nombre',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newName == null) return;
+    if (!mounted) return;
 
     try {
       final animaService = context.read<AnimaService>();
-      final saved = await animaService.setCorePrompt(_corePromptController.text);
-
+      final saved = await animaService.setUserName(newName);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(saved ? 'Core Prompt guardado' : 'No se pudo guardar el Core Prompt'),
-        ),
-      );
+
+      if (!saved) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No se pudo guardar el nombre')));
+        return;
+      }
+
+      setState(() {
+        _userName = newName;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Nombre actualizado')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error guardando Core Prompt: $e')),
-      );
-    } finally {
-      if (!mounted) return;
-      setState(() {
-        _isSavingPrompt = false;
-      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error guardando nombre: $e')));
     }
   }
 
-  Future<void> _exportBrain() async {
+  Future<void> _updateLanguage(String code) async {
+    final normalizedCode = TranslationService.normalizeLanguageCode(code);
+
+    try {
+      final animaService = context.read<AnimaService>();
+      final saved = await animaService.setAppLanguage(normalizedCode);
+      if (!mounted) return;
+
+      if (!saved) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No se pudo cambiar el idioma')));
+        return;
+      }
+
+      context.read<TranslationService>().setLanguage(normalizedCode);
+      setState(() {
+        _selectedLanguage = normalizedCode;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Idioma actualizado')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error cambiando idioma: $e')));
+    }
+  }
+
+  Future<void> _saveTemperature(double value) async {
+    try {
+      final animaService = context.read<AnimaService>();
+      final saved = await animaService.setTemperature(value);
+      if (!mounted) return;
+
+      if (!saved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo guardar la creatividad')),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Creatividad actualizada')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error guardando creatividad: $e')));
+    }
+  }
+
+  Future<void> _exportBrainToFile() async {
+    if (_isExporting) return;
+
     setState(() {
       _isExporting = true;
     });
 
     try {
-      final selectedDirectory = await FilePicker.platform.getDirectoryPath();
-      if (selectedDirectory == null) {
-        if (!mounted) return;
-        setState(() {
-          _isExporting = false;
-        });
-        return;
-      }
-
-      final destinationPath = '$selectedDirectory${Platform.pathSeparator}anima_backup.db';
       final animaService = context.read<AnimaService>();
-      final exported = await animaService.exportDatabase(destinationPath);
+      final exportPayload = await animaService.exportBrain();
+
+      final docsDir = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '${docsDir.path}${Platform.pathSeparator}anima_brain_$timestamp.json';
+      final file = File(filePath);
+      await file.writeAsString(exportPayload);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            exported
-                ? 'Backup exportado en: $destinationPath'
-                : 'No se pudo exportar el backup',
-          ),
-        ),
+        SnackBar(content: Text('Cerebro exportado en: $filePath')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error exportando backup: $e')),
+        SnackBar(content: Text('Error exportando cerebro: $e')),
       );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isExporting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+        });
+      }
     }
   }
 
@@ -162,6 +239,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          backgroundColor: const Color(0xFF18181B),
           title: const Text('¿Atención?'),
           content: const Text(
             'Estás a punto de borrar todos tus recuerdos, tu cerebro digital y tu identidad. Anima empezará de cero. ¿Quieres continuar?',
@@ -186,6 +264,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          backgroundColor: const Color(0xFF18181B),
           title: const Text('⚠️ ÚLTIMA ADVERTENCIA'),
           content: const Text(
             'Esta acción es irreversible. ¿Estás absolutamente seguro de que quieres destruir a esta versión de Anima?',
@@ -210,9 +289,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isFactoryResetting = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Borrando memoria...')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Formateando Anima...')));
 
     try {
       final animaService = context.read<AnimaService>();
@@ -235,116 +314,211 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error en formateo total: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error en formateo total: $e')));
       setState(() {
         _isFactoryResetting = false;
       });
     }
   }
 
-  @override
-  void dispose() {
-    _corePromptController.dispose();
-    super.dispose();
+  Widget _sectionTitle(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, top: 14, bottom: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Colors.grey.shade500,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.1,
+        ),
+      ),
+    );
+  }
+
+  Widget _settingCard({required Widget child}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withAlpha(18)),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildAnimatedBackButton() {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() {
+          _isBackHovered = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          _isBackHovered = false;
+        });
+      },
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 170),
+        curve: Curves.easeOutCubic,
+        scale: _isBackHovered ? 1.06 : 1.0,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 170),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: _isBackHovered ? Colors.white.withAlpha(12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _isBackHovered ? Colors.white.withAlpha(24) : Colors.transparent,
+            ),
+          ),
+          child: IconButton(
+            tooltip: tr(context, 'back'),
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF09090B),
       appBar: AppBar(
-        leading: _buildAnimatedAppBarBackButton(),
-        title: const Text('Sala de Mandos y Legado'),
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: _buildAnimatedBackButton(),
+        title: const Text('Ajustes'),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF09090B), Color(0xFF0F1021), Color(0xFF1B1842)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.045,
-                child: Image.asset('assets/web.png', fit: BoxFit.cover),
-              ),
-            ),
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(9),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.white.withAlpha(18)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Text('Añadidos a la personalidad (Opcional)'),
-                          const SizedBox(height: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _corePromptController,
-                              maxLines: null,
-                              expands: true,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                hintText:
-                                    'Ej: Háblame de usted, o compórtate como un sargento...',
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+              children: [
+                _sectionTitle('IDENTIDAD'),
+                _settingCard(
+                  child: ListTile(
+                    leading: const Icon(Icons.person_outline),
+                    title: const Text('Cambiar nombre'),
+                    subtitle: Text(
+                      _userName.trim().isEmpty ? 'Sin definir' : _userName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showEditNameDialog,
+                  ),
+                ),
+                _settingCard(
+                  child: ListTile(
+                    leading: const Icon(Icons.language_outlined),
+                    title: const Text('Cambiar idioma'),
+                    trailing: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedLanguage,
+                        dropdownColor: const Color(0xFF18181B),
+                        borderRadius: BorderRadius.circular(12),
+                        items: TranslationService.supportedLanguages
+                            .map(
+                              (code) => DropdownMenuItem<String>(
+                                value: code,
+                                child: Text(_languageLabels[code] ?? code),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _isSavingPrompt ? null : _saveCorePrompt,
-                            child: _isSavingPrompt
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Text('Guardar Core Prompt'),
-                          ),
-                          const SizedBox(height: 8),
-                          ElevatedButton.icon(
-                            onPressed: _isExporting ? null : _exportBrain,
-                            icon: const Icon(Icons.download),
-                            label: _isExporting
-                                ? const Text('Exportando Cerebro...')
-                                : const Text('Exportar Cerebro'),
-                          ),
-                          const SizedBox(height: 14),
-                          ElevatedButton(
-                            onPressed: _isFactoryResetting ? null : _runFactoryResetFlow,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: _isFactoryResetting
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Formatear Anima (Borrado Total)'),
-                          ),
-                        ],
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          _updateLanguage(value);
+                        },
                       ),
                     ),
                   ),
-          ],
-        ),
-      ),
+                ),
+                _sectionTitle('COMPORTAMIENTO'),
+                _settingCard(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.psychology_outlined),
+                            SizedBox(width: 10),
+                            Text(
+                              'Creatividad del modelo',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _temperature.toStringAsFixed(2),
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Slider(
+                          value: _temperature,
+                          min: 0.1,
+                          max: 1.0,
+                          divisions: 9,
+                          label: _temperature.toStringAsFixed(2),
+                          onChanged: (value) {
+                            setState(() {
+                              _temperature = value;
+                            });
+                          },
+                          onChangeEnd: _saveTemperature,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                _sectionTitle('DATOS Y PRIVACIDAD'),
+                _settingCard(
+                  child: ListTile(
+                    leading: const Icon(Icons.download_outlined),
+                    title: const Text('Exportar mi Cerebro'),
+                    subtitle: const Text('Guardar copia local en .json'),
+                    trailing: _isExporting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.chevron_right),
+                    onTap: _isExporting ? null : _exportBrainToFile,
+                  ),
+                ),
+                _settingCard(
+                  child: ListTile(
+                    leading: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+                    title: const Text(
+                      'Formatear Anima (Botón de Pánico)',
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
+                    subtitle: const Text('Zona de peligro · borrado total irreversible'),
+                    trailing: _isFactoryResetting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.chevron_right, color: Colors.redAccent),
+                    onTap: _isFactoryResetting ? null : _runFactoryResetFlow,
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

@@ -283,6 +283,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         return;
       }
 
+      if (!mounted) return;
       context.read<TranslationService>().setLanguage(_selectedLanguage);
       final nameSaved = await animaService.setUserName(name);
 
@@ -632,8 +633,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
             colors: [
               Color(0xFF09090B),
               Color(0xFF0D0C18),

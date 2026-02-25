@@ -5,6 +5,7 @@ use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::{AddBos, LlamaModel};
 use llama_cpp_2::sampling::LlamaSampler;
+use serde_json::json;
 use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
@@ -251,14 +252,51 @@ Directrices adicionales del usuario:
         user_extra_prompt = user_extra_prompt,
     );
 
+    let effective_temperature = db::get_temperature().unwrap_or(0.7);
     let generated = generate_with_system_prompt(
         &proactive_system_prompt,
         "Genera el saludo inicial ahora.",
-        0.7,
+        effective_temperature,
         120,
     )?;
 
     Ok(generated)
+}
+
+pub fn export_brain() -> Result<String, String> {
+    let profile_traits = db::get_profile_traits().map_err(|error| format!("DB error: {error}"))?;
+    let memories = db::get_all_memories().map_err(|error| format!("DB error: {error}"))?;
+    let user_name = db::get_user_name().unwrap_or_default();
+    let app_language = db::get_app_language().unwrap_or_else(|_| "Español".to_string());
+    let temperature = db::get_temperature().unwrap_or(0.7);
+
+    let json_output = json!({
+        "user_name": user_name,
+        "app_language": app_language,
+        "temperature": temperature,
+        "user_profile": profile_traits
+            .into_iter()
+            .map(|item| json!({
+                "category": item.category,
+                "content": item.content,
+            }))
+            .collect::<Vec<_>>(),
+        "memories": memories
+            .into_iter()
+            .map(|item| json!({
+                "id": item.id,
+                "content": item.content,
+                "created_at": item.created_at,
+            }))
+            .collect::<Vec<_>>(),
+        "exported_at": SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_secs())
+            .unwrap_or(0),
+    });
+
+    serde_json::to_string_pretty(&json_output)
+        .map_err(|error| format!("JSON serialization failed: {error}"))
 }
 
 fn language_name_for_prompt(language_code_or_name: &str) -> String {
