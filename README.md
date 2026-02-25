@@ -101,6 +101,33 @@ flutter run -d linux
 
 ---
 
+## Using More Powerful Models (If Your RAM Allows)
+
+If your machine has enough RAM, you can swap the default chat model for a larger GGUF model to improve reasoning quality and response richness.
+
+### Practical RAM guidance (CPU inference)
+
+- **8–16 GB RAM:** prefer lightweight/medium quantized models (`Q4_K_M`, `Q5_K_M`)
+- **16–32 GB RAM:** strong mid-size models (e.g. 7B–8B at higher-quality quantization)
+- **32+ GB RAM:** larger models become practical for local daily use
+
+### How to switch models
+
+1. Place your `.gguf` file inside `models/`.
+2. Update the model path used at initialization in `frontend/lib/services/anima_service.dart`:
+  - `chatModelPath: 'models/your_model.gguf'`
+3. Keep the embedding model path configured (for RAG memory retrieval).
+4. Re-run the app:
+
+```bash
+cd frontend
+flutter run -d windows
+```
+
+Use the same command with `-d macos` or `-d linux` on those platforms.
+
+---
+
 ## License
 
 MIT License
