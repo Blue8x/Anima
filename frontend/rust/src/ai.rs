@@ -149,6 +149,25 @@ pub fn generate_response_with_context(
     temperature: f32,
     max_tokens: u32,
 ) -> Result<String, String> {
+    generate_response_with_context_stream(
+        prompt,
+        relevant_context,
+        temperature,
+        max_tokens,
+        |_| Ok(()),
+    )
+}
+
+pub fn generate_response_with_context_stream<F>(
+    prompt: &str,
+    relevant_context: &[String],
+    temperature: f32,
+    max_tokens: u32,
+    mut on_chunk: F,
+) -> Result<String, String>
+where
+    F: FnMut(&str) -> Result<(), String>,
+{
     let context_block = if relevant_context.is_empty() {
         String::new()
     } else {
@@ -185,12 +204,59 @@ pub fn generate_response_with_context(
         _ => String::new(),
     };
 
-    generate_with_system_prompt(
+    generate_with_system_prompt_stream(
         &format!("{}{}{}", core_prompt, consolidated_profile_block, context_block),
         prompt,
         temperature,
         max_tokens,
+        &mut on_chunk,
     )
+}
+
+pub fn generate_proactive_greeting(time_of_day: &str) -> Result<String, String> {
+    let user_name = db::get_user_name().unwrap_or_default();
+    let app_language = db::get_app_language().unwrap_or_else(|_| "Español".to_string());
+    let user_extra_prompt = db::get_core_prompt().unwrap_or_default();
+
+    let profile_text = match db::get_profile_traits() {
+        Ok(traits) if !traits.is_empty() => traits
+            .into_iter()
+            .map(|trait_item| format!("- {}: {}", trait_item.category, trait_item.content))
+            .collect::<Vec<String>>()
+            .join("\n"),
+        _ => "(sin datos aún)".to_string(),
+    };
+
+    let proactive_system_prompt = format!(
+        r#"Eres Anima. {base_soul}
+Hablas con {user_name}. Su perfil es:
+{profile}
+El idioma es {language}. Es por la {time_of_day}.
+
+INSTRUCCIÓN: Escribe un saludo inicial proactivo, natural y conversacional (máximo 2 líneas) para empezar el chat. Haz una ligera referencia a la hora del día o a algún dato de su perfil si encaja bien. NO esperes a que el usuario hable. NO seas robótico.
+
+Directrices adicionales del usuario:
+{user_extra_prompt}"#,
+        base_soul = ANIMA_BASE_SOUL,
+        user_name = if user_name.trim().is_empty() {
+            "la persona"
+        } else {
+            user_name.as_str()
+        },
+        profile = profile_text,
+        language = app_language,
+        time_of_day = time_of_day,
+        user_extra_prompt = user_extra_prompt,
+    );
+
+    let generated = generate_with_system_prompt(
+        &proactive_system_prompt,
+        "Genera el saludo inicial ahora.",
+        0.7,
+        120,
+    )?;
+
+    Ok(generated)
 }
 
 pub fn run_sleep_cycle() -> Result<bool, String> {
@@ -337,6 +403,21 @@ fn generate_with_system_prompt(
     temperature: f32,
     max_tokens: u32,
 ) -> Result<String, String> {
+    generate_with_system_prompt_stream(system_prompt, user_prompt, temperature, max_tokens, |_| {
+        Ok(())
+    })
+}
+
+fn generate_with_system_prompt_stream<F>(
+    system_prompt: &str,
+    user_prompt: &str,
+    temperature: f32,
+    max_tokens: u32,
+    mut on_chunk: F,
+) -> Result<String, String>
+where
+    F: FnMut(&str) -> Result<(), String>,
+{
     let backend_lock = get_or_init_backend()?;
     let backend = backend_lock
         .lock()
@@ -406,7 +487,9 @@ fn generate_with_system_prompt(
             .token_to_bytes(token, llama_cpp_2::model::Special::Tokenize)
             .map_err(|error| format!("Token decode failed: {error}"))?;
 
-        generated.push_str(&String::from_utf8_lossy(&piece_bytes));
+        let piece = String::from_utf8_lossy(&piece_bytes).to_string();
+        generated.push_str(&piece);
+        on_chunk(&piece)?;
         sampler.accept(token);
 
         let mut token_batch = LlamaBatch::new(1, 1);

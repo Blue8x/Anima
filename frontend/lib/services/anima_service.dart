@@ -49,6 +49,42 @@ class AnimaService {
     }
   }
 
+  Stream<String> streamMessage(String text) {
+    _logger.i('streamMessage start');
+    _logger.d('streamMessage payload length=${text.length}');
+    return rust_simple.sendMessageStream(
+      message: text,
+      temperature: 0.7,
+      maxTokens: 512,
+    );
+  }
+
+  Future<bool> saveAssistantMessage(String text) async {
+    _logger.i('saveAssistantMessage start length=${text.length}');
+    try {
+      final saved = await rust_simple.saveAssistantMessage(message: text);
+      _logger.i('saveAssistantMessage result=$saved');
+      return saved;
+    } catch (e, st) {
+      _logger.e('saveAssistantMessage failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
+  Future<String> generateProactiveGreeting(String timeOfDay) async {
+    _logger.i('generateProactiveGreeting start timeOfDay=$timeOfDay');
+    try {
+      final greeting = await rust_simple.generateProactiveGreeting(
+        timeOfDay: timeOfDay,
+      );
+      _logger.i('generateProactiveGreeting success length=${greeting.length}');
+      return greeting;
+    } catch (e, st) {
+      _logger.e('generateProactiveGreeting failed', error: e, stackTrace: st);
+      rethrow;
+    }
+  }
+
   Future<List<ChatMessage>> loadHistory() async {
     _logger.i('loadHistory start');
     try {

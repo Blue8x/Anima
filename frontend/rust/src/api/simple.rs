@@ -3,6 +3,7 @@ use crate::db;
 pub use crate::db::ChatMessage;
 pub use crate::db::MemoryItem;
 pub use crate::db::ProfileTrait;
+use crate::frb_generated::StreamSink;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
@@ -19,46 +20,13 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
         return format!("Error: {error}");
     }
 
-    let mut relevant_context = Vec::<String>::new();
-
-    let user_message_id = match db::insert_message("user", &message) {
-        Ok(message_id) => message_id,
-        Err(error) => {
-            let detail = format!("Error de DB al guardar mensaje de usuario: {error}");
+    let (_user_message_id, relevant_context) = match prepare_message_context(&message) {
+        Ok(values) => values,
+        Err(detail) => {
             eprintln!("{detail}");
             return format!("Error: {detail}");
         }
     };
-
-    match ai::generate_embedding(&message) {
-        Ok(embedding) if !embedding.is_empty() => {
-            if let Err(error) = db::insert_memory(user_message_id, &embedding) {
-                let detail = format!("Error de DB al guardar embedding: {error}");
-                eprintln!("{detail}");
-                return format!("Error: {detail}");
-            }
-
-            match db::find_top_similar_memories(&embedding, 3, Some(user_message_id)) {
-                Ok(matches) => {
-                    relevant_context = matches
-                        .into_iter()
-                        .map(|memory| format!("[{}] {}", memory.role, memory.content))
-                        .collect();
-                }
-                Err(error) => {
-                    let detail = format!("Error al recuperar contexto semántico: {error}");
-                    eprintln!("{detail}");
-                    return format!("Error: {detail}");
-                }
-            }
-        }
-        Ok(_) => {}
-        Err(error) => {
-            let detail = format!("Error generando embedding: {error}");
-            eprintln!("{detail}");
-            return format!("Error: {detail}");
-        }
-    }
 
     let generated = match ai::generate_response_with_context(
         &message,
@@ -80,6 +48,49 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
     }
 
     generated
+}
+
+#[flutter_rust_bridge::frb]
+pub fn send_message_stream(
+    message: String,
+    temperature: f32,
+    max_tokens: u32,
+    sink: StreamSink<String>,
+) -> Result<(), String> {
+    if let Some(error) = current_init_error() {
+        return Err(error);
+    }
+
+    let (_user_message_id, relevant_context) = prepare_message_context(&message)?;
+
+    ai::generate_response_with_context_stream(
+        &message,
+        &relevant_context,
+        temperature,
+        max_tokens,
+        |chunk| {
+            let _ = sink.add(chunk.to_string());
+            Ok(())
+        },
+    )?;
+
+    Ok(())
+}
+
+#[flutter_rust_bridge::frb]
+pub fn save_assistant_message(message: String) -> bool {
+    match db::insert_message("assistant", &message) {
+        Ok(_) => true,
+        Err(error) => {
+            eprintln!("Failed to store assistant message: {error}");
+            false
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub fn generate_proactive_greeting(time_of_day: String) -> Result<String, String> {
+    ai::generate_proactive_greeting(&time_of_day)
 }
 
 #[flutter_rust_bridge::frb]
@@ -318,4 +329,32 @@ fn resolve_model_path(model_path: &str) -> Result<String, String> {
         "No se encontró el modelo '{model_path}'. CWD actual: '{}'. Rutas probadas: {tried}",
         cwd.display()
     ))
+}
+
+fn prepare_message_context(message: &str) -> Result<(i64, Vec<String>), String> {
+    let user_message_id = db::insert_message("user", message)
+        .map_err(|error| format!("Error de DB al guardar mensaje de usuario: {error}"))?;
+
+    let mut relevant_context = Vec::<String>::new();
+
+    match ai::generate_embedding(message) {
+        Ok(embedding) if !embedding.is_empty() => {
+            db::insert_memory(user_message_id, &embedding)
+                .map_err(|error| format!("Error de DB al guardar embedding: {error}"))?;
+
+            let matches = db::find_top_similar_memories(&embedding, 3, Some(user_message_id))
+                .map_err(|error| format!("Error al recuperar contexto semántico: {error}"))?;
+
+            relevant_context = matches
+                .into_iter()
+                .map(|memory| format!("[{}] {}", memory.role, memory.content))
+                .collect();
+        }
+        Ok(_) => {}
+        Err(error) => {
+            return Err(format!("Error generando embedding: {error}"));
+        }
+    }
+
+    Ok((user_message_id, relevant_context))
 }

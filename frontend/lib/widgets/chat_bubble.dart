@@ -1,6 +1,7 @@
 // Chat bubble widget
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../services/translation_service.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -32,14 +33,35 @@ class ChatBubble extends StatelessWidget {
           crossAxisAlignment:
               isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            Text(
-              message,
-              style: TextStyle(
-                color: isUser
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
+            isUser
+                ? Text(
+                    message,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  )
+                : MarkdownBody(
+                    data: message,
+                    selectable: true,
+                    styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                      p: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      listBullet: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      code: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      codeblockDecoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withAlpha(120),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
             const SizedBox(height: 4),
             Text(
               _formatTime(context, timestamp),

@@ -56,6 +56,14 @@ Anima combines local inference, semantic memory, and nightly cognitive consolida
 - Flutter SDK
 - `.gguf` models placed in the expected project folder (for example `models/`)
 
+Optional but recommended (for first-time desktop setup):
+
+```bash
+flutter config --enable-windows-desktop
+flutter config --enable-macos-desktop
+flutter config --enable-linux-desktop
+```
+
 ### 2. Build Rust backend
 
 ```bash
@@ -63,7 +71,9 @@ cd frontend/rust
 cargo build
 ```
 
-### 3. Run Flutter frontend (Windows)
+### 3. Run Flutter frontend
+
+#### Windows
 
 ```bash
 cd frontend
@@ -71,10 +81,26 @@ flutter pub get
 flutter run -d windows
 ```
 
+#### macOS
+
+```bash
+cd frontend
+flutter pub get
+flutter run -d macos
+```
+
+#### Linux
+
+```bash
+cd frontend
+flutter pub get
+flutter run -d linux
+```
+
 > Make sure `.gguf` model files exist in the configured path before starting the app.
 
 ---
 
-## Licencia
+## License
 
 MIT License

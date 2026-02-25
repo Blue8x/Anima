@@ -24,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ChatMessage> _sessionMessages = [];
   bool _isHistoryExpanded = false;
   bool isTyping = false;
+  bool _hasRequestedProactiveGreeting = false;
 
   @override
   void initState() {
@@ -39,12 +40,60 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _historyMessages = history;
       });
+
+      if (history.isEmpty) {
+        await _generateProactiveGreetingIfNeeded();
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(
         SnackBar(content: Text('${tr(context, 'failedLoadHistory')}: $e')),
+      );
+    }
+  }
+
+  Future<void> _generateProactiveGreetingIfNeeded() async {
+    if (_hasRequestedProactiveGreeting) return;
+    if (_historyMessages.isNotEmpty || _sessionMessages.isNotEmpty) return;
+
+    _hasRequestedProactiveGreeting = true;
+
+    final hour = DateTime.now().hour;
+    final String timeOfDay = hour < 12 ? 'mañana' : hour < 20 ? 'tarde' : 'noche';
+
+    if (!mounted) return;
+    setState(() {
+      isTyping = true;
+    });
+    _scrollToBottom();
+
+    try {
+      final animaService = context.read<AnimaService>();
+      final greeting = await animaService.generateProactiveGreeting(timeOfDay);
+
+      if (!mounted) return;
+      setState(() {
+        _sessionMessages = [
+          ..._sessionMessages,
+          ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch + 1,
+            role: 'assistant',
+            content: greeting,
+            timestamp: DateTime.now().toUtc().toIso8601String(),
+          ),
+        ];
+        isTyping = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        isTyping = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate greeting: $e')),
       );
     }
   }
@@ -64,16 +113,24 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _sendMessage(String content) async {
     if (content.trim().isEmpty) return;
 
+    final userMessageId = DateTime.now().millisecondsSinceEpoch;
+    final assistantMessageId = userMessageId + 1;
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
     setState(() {
       _sessionMessages = [
         ..._sessionMessages,
         ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch,
+          id: userMessageId,
           role: 'user',
           content: content,
           timestamp: nowIso,
+        ),
+        ChatMessage(
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          timestamp: DateTime.now().toUtc().toIso8601String(),
         ),
       ];
       isTyping = true;
@@ -82,24 +139,55 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
-      final response = await animaService.processMessage(content);
+      await for (final chunk in animaService.streamMessage(content)) {
+        if (!mounted) return;
+        setState(() {
+          _sessionMessages = _sessionMessages
+              .map(
+                (message) => message.id == assistantMessageId
+                    ? ChatMessage(
+                        id: message.id,
+                        role: message.role,
+                        content: '${message.content}$chunk',
+                        timestamp: message.timestamp,
+                      )
+                    : message,
+              )
+              .toList();
+        });
+        _scrollToBottom();
+      }
+
+      final finalAssistantMessage = _sessionMessages
+          .where((message) => message.id == assistantMessageId)
+          .map((message) => message.content)
+          .join();
+
+      if (finalAssistantMessage.trim().isNotEmpty) {
+        await animaService.saveAssistantMessage(finalAssistantMessage);
+      }
 
       if (!mounted) return;
       setState(() {
-        _sessionMessages = [
-          ..._sessionMessages,
-          ChatMessage(
-            id: DateTime.now().millisecondsSinceEpoch + 1,
-            role: 'assistant',
-            content: response,
-            timestamp: DateTime.now().toUtc().toIso8601String(),
-          ),
-        ];
         isTyping = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
+        _sessionMessages = _sessionMessages
+            .map(
+              (message) => message.id == assistantMessageId
+                  ? ChatMessage(
+                      id: message.id,
+                      role: message.role,
+                      content: message.content.isEmpty
+                          ? 'Error: $e'
+                          : message.content,
+                      timestamp: message.timestamp,
+                    )
+                  : message,
+            )
+            .toList();
         isTyping = false;
       });
       ScaffoldMessenger.of(
