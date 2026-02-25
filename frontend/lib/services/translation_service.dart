@@ -617,6 +617,15 @@ class AppTranslations {
       'ZH': '导出大脑时出错',
       'AR': 'خطأ أثناء تصدير الدماغ',
     },
+    'exportCancelled': {
+      'EN': 'Export canceled',
+      'ES': 'Exportación cancelada',
+      'DE': 'Export abgebrochen',
+      'RU': 'Экспорт отменён',
+      'JP': 'エクスポートがキャンセルされました',
+      'ZH': '导出已取消',
+      'AR': 'تم إلغاء التصدير',
+    },
     'warningTitle': {
       'EN': 'Warning',
       'ES': '¿Atención?',

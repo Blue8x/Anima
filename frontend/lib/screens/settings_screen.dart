@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../services/anima_service.dart';
@@ -201,18 +202,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
-      final animaService = context.read<AnimaService>();
-      final exportPayload = await animaService.exportBrain();
+      final translationService = context.read<TranslationService>();
+      String t(String key) => translationService.tr(key);
 
-      final docsDir = await getApplicationDocumentsDirectory();
+      final animaService = context.read<AnimaService>();
+      final rawPayload = await animaService.exportBrain();
+      final exportPayload = _ensureUsableBackupPayload(rawPayload);
+
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final filePath = '${docsDir.path}${Platform.pathSeparator}anima_brain_$timestamp.json';
-      final file = File(filePath);
-      await file.writeAsString(exportPayload);
+      final defaultFileName = 'anima_brain_$timestamp.json';
+
+      final selectedPath = await FilePicker.platform.saveFile(
+        dialogTitle: t('exportBrain'),
+        fileName: defaultFileName,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (selectedPath == null || selectedPath.trim().isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t('exportCancelled'))));
+        return;
+      }
+
+      final targetPath = selectedPath.toLowerCase().endsWith('.json')
+          ? selectedPath
+          : '$selectedPath.json';
+
+      final file = File(targetPath);
+      await file.writeAsString(exportPayload, flush: true);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${tr(context, 'brainExportedAt')}: $filePath')),
+        SnackBar(content: Text('${t('brainExportedAt')}: $targetPath')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -226,6 +250,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
         });
       }
     }
+  }
+
+  String _ensureUsableBackupPayload(String rawPayload) {
+    try {
+      final decoded = jsonDecode(rawPayload);
+      if (decoded is Map<String, dynamic>) {
+        final profile = decoded['user_profile'];
+        final memories = decoded['memories'];
+        final userName = (decoded['user_name'] ?? '').toString().trim();
+
+        final hasProfile = profile is List && profile.isNotEmpty;
+        final hasMemories = memories is List && memories.isNotEmpty;
+        final hasUserName = userName.isNotEmpty;
+
+        if (hasProfile || hasMemories || hasUserName) {
+          return rawPayload;
+        }
+      }
+    } catch (_) {
+      // If payload is malformed, fall back to template.
+    }
+
+    return jsonEncode({
+      'user_name': _userName,
+      'app_language': _selectedLanguage,
+      'temperature': _temperature,
+      'user_profile': <dynamic>[],
+      'memories': <dynamic>[],
+      'notes': 'Backup template generated because no profile/memory data was found.',
+      'exported_at': DateTime.now().toIso8601String(),
+    });
   }
 
   Future<void> _runFactoryResetFlow() async {
