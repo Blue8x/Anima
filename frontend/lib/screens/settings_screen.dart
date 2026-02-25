@@ -45,10 +45,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     try {
       final animaService = context.read<AnimaService>();
-      final userName = await animaService.getUserName();
-      final dbLanguage = await animaService.getAppLanguage();
+      final userName = await animaService.getUserName().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => '',
+      );
+      final dbLanguage = await animaService.getAppLanguage().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => 'ES',
+      );
       final normalizedLanguage = TranslationService.normalizeLanguageCode(dbLanguage);
-      final temperature = await animaService.getTemperature();
+      final temperature = await animaService.getTemperature().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => 0.7,
+      );
 
       if (!mounted) return;
       context.read<TranslationService>().setLanguageLocal(normalizedLanguage);

@@ -251,28 +251,10 @@ pub fn export_database(dest_path: String) -> Result<bool, String> {
 #[flutter_rust_bridge::frb]
 pub fn factory_reset() -> Result<bool, String> {
     eprintln!("[factory_reset_api] request received");
-
-    let (tx, rx) = mpsc::channel::<Result<(), String>>();
-
-    thread::spawn(move || {
-        let result = db::factory_reset();
-        let _ = tx.send(result);
-    });
-
-    match rx.recv_timeout(Duration::from_secs(10)) {
-        Ok(result) => {
-            eprintln!("[factory_reset_api] completed");
-            result.map(|_| true)
-        }
-        Err(mpsc::RecvTimeoutError::Timeout) => {
-            eprintln!("[factory_reset_api] timeout after 10s");
-            Err("Factory reset timed out after 10 seconds".to_string())
-        }
-        Err(error) => {
-            eprintln!("[factory_reset_api] channel error: {error}");
-            Err(format!("Factory reset channel error: {error}"))
-        }
-    }
+    db::factory_reset().map(|_| {
+        eprintln!("[factory_reset_api] completed");
+        true
+    })
 }
 
 #[flutter_rust_bridge::frb]
