@@ -400,7 +400,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         const SizedBox(height: 18),
         TextField(
           controller: _seedController,
-          maxLines: 4,
+          minLines: 3,
+          maxLines: 5,
           decoration: InputDecoration(
             hintText: tr(context, 'optionalSeedHint'),
             hintStyle: TextStyle(color: Colors.white.withAlpha(140)),
