@@ -230,22 +230,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _runFactoryResetFlow() async {
     if (_isFactoryResetting) return;
+    final translationService = context.read<TranslationService>();
+    String t(String key) => translationService.tr(key);
 
     final firstConfirm = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF18181B),
-          title: Text(tr(context, 'warningTitle')),
-          content: Text(tr(context, 'factoryResetFirstConfirm')),
+          title: Text(t('warningTitle')),
+          content: Text(t('factoryResetFirstConfirm')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text(tr(context, 'cancel')),
+              child: Text(t('cancel')),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: Text(tr(context, 'continue')),
+              child: Text(t('continue')),
             ),
           ],
         );
@@ -259,16 +261,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF18181B),
-          title: Text(tr(context, 'finalWarningTitle')),
-          content: Text(tr(context, 'factoryResetSecondConfirm')),
+          title: Text(t('finalWarningTitle')),
+          content: Text(t('factoryResetSecondConfirm')),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text(tr(context, 'cancel')),
+              child: Text(t('cancel')),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: Text(tr(context, 'deleteAll')),
+              child: Text(t('deleteAll')),
             ),
           ],
         );
@@ -289,13 +291,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _isFactoryResetting = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(context, 'factoryResetError'))),
+        SnackBar(content: Text(t('factoryResetError'))),
       );
     });
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(tr(context, 'formattingAnima'))));
+    ).showSnackBar(SnackBar(content: Text(t('formattingAnima'))));
 
     try {
       debugPrint('[factory_reset_ui] request start');
@@ -308,7 +310,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (!resetOk) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(context, 'factoryResetFailed'))),
+          SnackBar(content: Text(t('factoryResetFailed'))),
         );
         return;
       }
@@ -328,7 +330,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('${tr(context, 'factoryResetError')}: $e')));
+      ).showSnackBar(SnackBar(content: Text('${t('factoryResetError')}: $e')));
     } finally {
       flowFinished = true;
       hardStopTimer.cancel();
