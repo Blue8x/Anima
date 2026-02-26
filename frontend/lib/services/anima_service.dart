@@ -360,9 +360,7 @@ class AnimaService {
   Future<bool> triggerSleepCycle() async {
     _logger.i('Triggering manual sleep cycle');
     try {
-      final result = await rust_simple
-          .runSleepCycle()
-          .timeout(const Duration(seconds: 25));
+      final result = await rust_simple.runSleepCycle();
       _logger.i('triggerSleepCycle result=$result');
       return result;
     } catch (e, st) {

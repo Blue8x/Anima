@@ -163,7 +163,7 @@ class _BrainScreenState extends State<BrainScreen> {
     });
 
     double progress = 0.0;
-    String statusText = translationService.tr('sleepStart');
+    String statusText = translationService.tr('sleepLoadingToday');
     StateSetter? dialogSetState;
     Timer? fakeProgressTimer;
 
@@ -250,9 +250,11 @@ class _BrainScreenState extends State<BrainScreen> {
     fakeProgressTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       progress = (progress + 0.08).clamp(0.0, 0.9);
 
-      if (progress < 0.3) {
+      if (progress < 0.2) {
+        statusText = translationService.tr('sleepLoadingToday');
+      } else if (progress < 0.4) {
         statusText = translationService.tr('sleepAnalyzing');
-      } else if (progress < 0.6) {
+      } else if (progress < 0.7) {
         statusText = translationService.tr('sleepExtracting');
       } else {
         statusText = translationService.tr('sleepConsolidating');
@@ -263,6 +265,7 @@ class _BrainScreenState extends State<BrainScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
+      await Future.delayed(const Duration(milliseconds: 120));
       debugPrint('[sleep_ui_brain] calling triggerSleepCycle');
       await animaService.triggerSleepCycle();
       debugPrint('[sleep_ui_brain] triggerSleepCycle completed');

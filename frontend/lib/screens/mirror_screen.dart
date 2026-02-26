@@ -25,7 +25,7 @@ class _MirrorScreenState extends State<MirrorScreen> {
     });
 
     double progress = 0.0;
-    String statusText = 'Iniciando ciclo de sueño...';
+    String statusText = 'Cargando los mensajes del día...';
     StateSetter? dialogSetState;
     Timer? fakeProgressTimer;
 
@@ -109,9 +109,11 @@ class _MirrorScreenState extends State<MirrorScreen> {
     fakeProgressTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       progress = (progress + 0.08).clamp(0.0, 0.9);
 
-      if (progress < 0.3) {
+      if (progress < 0.2) {
+        statusText = 'Cargando los mensajes del día...';
+      } else if (progress < 0.4) {
         statusText = 'Analizando recuerdos crudos...';
-      } else if (progress < 0.6) {
+      } else if (progress < 0.7) {
         statusText = 'Extrayendo rasgos de personalidad...';
       } else {
         statusText = 'Consolidando Cerebro Digital...';
@@ -122,6 +124,7 @@ class _MirrorScreenState extends State<MirrorScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
+      await Future.delayed(const Duration(milliseconds: 120));
       debugPrint('[sleep_ui_mirror] calling triggerSleepCycle');
       await animaService.triggerSleepCycle();
       debugPrint('[sleep_ui_mirror] triggerSleepCycle completed');

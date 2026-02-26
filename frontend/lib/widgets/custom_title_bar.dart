@@ -76,6 +76,7 @@ class _CustomTitleBarState extends State<CustomTitleBar> with WindowListener {
                     'Anima',
                     style: TextStyle(
                       color: Color(0xFFE4E4E7),
+                      decoration: TextDecoration.none,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),

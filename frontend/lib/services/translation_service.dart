@@ -320,6 +320,15 @@ class AppTranslations {
       'ZH': '正在启动睡眠周期...',
       'AR': 'بدء دورة النوم...',
     },
+    'sleepLoadingToday': {
+      'EN': 'Loading today\'s messages...',
+      'ES': 'Cargando los mensajes del día...',
+      'DE': 'Nachrichten von heute werden geladen...',
+      'RU': 'Загрузка сообщений за сегодня...',
+      'JP': '今日のメッセージを読み込み中...',
+      'ZH': '正在加载今日消息...',
+      'AR': 'جاري تحميل رسائل اليوم...',
+    },
     'sleepAnalyzing': {
       'EN': 'Analyzing raw memories...',
       'ES': 'Analizando recuerdos crudos...',

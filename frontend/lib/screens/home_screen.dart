@@ -19,6 +19,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static bool _isAppInitialized = false;
+  static List<ChatMessage> _cachedHistoryMessages = [];
+  static List<ChatMessage> _cachedSessionMessages = [];
+  static bool _cachedHistoryExpanded = false;
+  static bool _cachedHasRequestedProactiveGreeting = false;
+
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<void>? _factoryResetSubscription;
   List<ChatMessage> _historyMessages = [];
@@ -40,9 +46,34 @@ class _HomeScreenState extends State<HomeScreen> {
         _isHistoryExpanded = false;
         isTyping = false;
         _hasRequestedProactiveGreeting = false;
+        _isInitializing = false;
       });
+
+      _isAppInitialized = false;
+      _cachedHistoryMessages = [];
+      _cachedSessionMessages = [];
+      _cachedHistoryExpanded = false;
+      _cachedHasRequestedProactiveGreeting = false;
     });
+
+    if (_isAppInitialized) {
+      _historyMessages = List<ChatMessage>.from(_cachedHistoryMessages);
+      _sessionMessages = List<ChatMessage>.from(_cachedSessionMessages);
+      _isHistoryExpanded = _cachedHistoryExpanded;
+      _hasRequestedProactiveGreeting = _cachedHasRequestedProactiveGreeting;
+      _isInitializing = false;
+      return;
+    }
+
     _loadHistory();
+  }
+
+  void _cacheHomeState() {
+    _cachedHistoryMessages = List<ChatMessage>.from(_historyMessages);
+    _cachedSessionMessages = List<ChatMessage>.from(_sessionMessages);
+    _cachedHistoryExpanded = _isHistoryExpanded;
+    _cachedHasRequestedProactiveGreeting = _hasRequestedProactiveGreeting;
+    _isAppInitialized = !_isInitializing;
   }
 
   Future<void> _loadHistory() async {
@@ -62,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
             )
             .toList();
       });
+          _cacheHomeState();
 
       if (history.isEmpty) {
         await _generateProactiveGreetingIfNeeded();
@@ -78,6 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _isInitializing = false;
         });
+        _cacheHomeState();
       }
     }
   }
@@ -87,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_historyMessages.isNotEmpty || _sessionMessages.isNotEmpty) return;
 
     _hasRequestedProactiveGreeting = true;
+    _cacheHomeState();
 
     final hour = DateTime.now().hour;
     final String timeOfDay = hour < 12 ? 'morning' : hour < 20 ? 'afternoon' : 'evening';
@@ -118,12 +152,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ];
         isTyping = false;
       });
+      _cacheHomeState();
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       setState(() {
         isTyping = false;
       });
+      _cacheHomeState();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${tr(context, 'failedGenerateGreeting')}: $e')),
       );
@@ -167,6 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ];
       isTyping = true;
     });
+    _cacheHomeState();
     _scrollToBottom();
 
     try {
@@ -189,6 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
               )
               .toList();
         });
+              _cacheHomeState();
         _scrollToBottom();
       }
 
@@ -205,6 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         isTyping = false;
       });
+      _cacheHomeState();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -224,6 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .toList();
         isTyping = false;
       });
+      _cacheHomeState();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(

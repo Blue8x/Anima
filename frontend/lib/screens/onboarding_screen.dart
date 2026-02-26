@@ -22,7 +22,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final FocusNode _nameFocusNode = FocusNode();
   bool _isSubmitting = false;
   bool _languageSelectedByUser = false;
-  String _selectedLanguage = 'ES';
+  String _selectedLanguage = 'EN';
   int _step = 0;
   String? _hoveredLanguage;
   double _wheelAngle = 0;
@@ -68,24 +68,38 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedLanguage = 'EN';
+    _wheelAngle = _wheelAngleForLanguage('EN');
+    context.read<TranslationService>().setLanguageLocal('EN');
     _loadInitialLanguage();
+  }
+
+  double _wheelAngleForLanguage(String languageCode) {
+    final normalized = TranslationService.normalizeLanguageCode(languageCode);
+    final selectedIndex = _languageOptions.indexWhere(
+      (option) => option.backendValue == normalized,
+    );
+
+    if (selectedIndex < 0) {
+      return 0;
+    }
+
+    final angleStep = (2 * math.pi) / _languageOptions.length;
+    return -selectedIndex * angleStep;
   }
 
   Future<void> _loadInitialLanguage() async {
     try {
-      final animaService = context.read<AnimaService>();
-      final savedLanguage = await animaService.getAppLanguage();
-      final language = TranslationService.normalizeLanguageCode(savedLanguage);
-
       if (!mounted) return;
       if (_languageSelectedByUser) return;
       setState(() {
-        _selectedLanguage = language;
+        _selectedLanguage = 'EN';
+        _wheelAngle = _wheelAngleForLanguage('EN');
       });
-      context.read<TranslationService>().setLanguageLocal(language);
+      context.read<TranslationService>().setLanguageLocal('EN');
     } catch (_) {
       if (!mounted) return;
-      context.read<TranslationService>().setLanguageLocal(_selectedLanguage);
+      context.read<TranslationService>().setLanguageLocal('EN');
     }
   }
 

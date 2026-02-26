@@ -25,6 +25,11 @@ class MainDrawer extends StatelessWidget {
       return;
     }
 
+    if (section == MainDrawerSection.chat) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
+
     final Widget destination;
     switch (section) {
       case MainDrawerSection.chat:
@@ -41,9 +46,7 @@ class MainDrawer extends StatelessWidget {
         break;
     }
 
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => destination));
   }
 
   @override

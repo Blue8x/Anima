@@ -114,8 +114,11 @@ Anima combines a Flutter app for premium dark UI with a Rust core for local cogn
 - Advanced onboarding with wheel-based selector for 7 core languages.
 - Global locale updates are instant across all screens.
 - Premium dark UX across core screens.
+- Startup bootstrap screen with black background and animated Anima logo while local runtime initializes.
+- Onboarding language wheel defaults to EN and starts with EN positioned at 12 o'clock.
 - Full factory reset (double confirmation).
 - Brain export and database export capabilities.
+- Sleep cycle "Process and Shutdown" flow shows blocking progress dialog and closes cleanly after processing.
 
 ---
 

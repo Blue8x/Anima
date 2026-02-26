@@ -29,23 +29,212 @@ Future<void> main() async {
     });
   }
 
-  await RustLib.init();
-  final animaService = AnimaService();
-  await animaService.initialize();
-  final userName = await animaService.getUserName();
-  final appLanguage = TranslationService.normalizeLanguageCode(
-    await animaService.getAppLanguage(),
-  );
-  final initialScreen = userName.trim().isEmpty
-      ? const OnboardingScreen()
-      : const HomeScreen();
-  runApp(
-    AnimaApp(
+  runApp(const _BootstrapApp());
+}
+
+class _BootstrapResult {
+  final AnimaService animaService;
+  final Widget initialScreen;
+  final String initialLanguage;
+
+  const _BootstrapResult({
+    required this.animaService,
+    required this.initialScreen,
+    required this.initialLanguage,
+  });
+}
+
+class _BootstrapApp extends StatefulWidget {
+  const _BootstrapApp();
+
+  @override
+  State<_BootstrapApp> createState() => _BootstrapAppState();
+}
+
+class _BootstrapAppState extends State<_BootstrapApp> {
+  late final Future<_BootstrapResult> _bootstrapFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrapFuture = _bootstrap();
+  }
+
+  Future<_BootstrapResult> _bootstrap() async {
+    await RustLib.init();
+    final animaService = AnimaService();
+    await animaService.initialize();
+    final userName = await animaService.getUserName();
+    final appLanguage = TranslationService.normalizeLanguageCode(
+      await animaService.getAppLanguage(),
+    );
+    final initialScreen = userName.trim().isEmpty
+        ? const OnboardingScreen()
+        : const HomeScreen();
+
+    return _BootstrapResult(
       animaService: animaService,
       initialScreen: initialScreen,
       initialLanguage: appLanguage,
-    ),
-  );
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<_BootstrapResult>(
+      future: _bootstrapFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _StartupLoadingApp();
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return _StartupErrorApp(
+            message: snapshot.error?.toString() ?? 'Initialization failed',
+          );
+        }
+
+        final result = snapshot.data!;
+        return AnimaApp(
+          animaService: result.animaService,
+          initialScreen: result.initialScreen,
+          initialLanguage: result.initialLanguage,
+        );
+      },
+    );
+  }
+}
+
+class _StartupLoadingApp extends StatelessWidget {
+  const _StartupLoadingApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.dark,
+      darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
+        scaffoldBackgroundColor: const Color(0xFF09090B),
+      ),
+      builder: (context, child) {
+        final content = child ?? const SizedBox.shrink();
+        if (!Platform.isWindows) return content;
+        return Column(
+          children: [
+            const CustomTitleBar(),
+            Expanded(child: content),
+          ],
+        );
+      },
+      home: const Scaffold(
+        backgroundColor: Color(0xFF09090B),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _AnimatedStartupLogo(),
+              SizedBox(height: 16),
+              Text(
+                'Loading Anima...',
+                style: TextStyle(color: Color(0xFFE4E4E7)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AnimatedStartupLogo extends StatefulWidget {
+  const _AnimatedStartupLogo();
+
+  @override
+  State<_AnimatedStartupLogo> createState() => _AnimatedStartupLogoState();
+}
+
+class _AnimatedStartupLogoState extends State<_AnimatedStartupLogo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1700),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_controller.value);
+        final scale = 0.96 + (t * 0.08);
+        return Transform.scale(
+          scale: scale,
+          child: Opacity(
+            opacity: 0.82 + (t * 0.18),
+            child: child,
+          ),
+        );
+      },
+      child: Image.asset(
+        'assets/anima_logo.png',
+        width: 108,
+        height: 108,
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+}
+
+class _StartupErrorApp extends StatelessWidget {
+  final String message;
+
+  const _StartupErrorApp({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.dark,
+      darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
+        scaffoldBackgroundColor: const Color(0xFF09090B),
+      ),
+      builder: (context, child) {
+        final content = child ?? const SizedBox.shrink();
+        if (!Platform.isWindows) return content;
+        return Column(
+          children: [
+            const CustomTitleBar(),
+            Expanded(child: content),
+          ],
+        );
+      },
+      home: Scaffold(
+        backgroundColor: const Color(0xFF09090B),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Failed to initialize Anima:\n$message',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFE4E4E7)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class AnimaApp extends StatelessWidget {
