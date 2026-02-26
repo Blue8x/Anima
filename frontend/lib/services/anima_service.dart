@@ -93,10 +93,9 @@ class AnimaService {
       if (appLanguage != null && appLanguage.trim().isNotEmpty) {
         await setAppLanguage(appLanguage);
       }
-      final configuredTemperature = await getTemperature();
       final response = await rust_simple.sendMessage(
         message: text,
-        temperature: configuredTemperature,
+        temperature: 0.7,
         maxTokens: 512,
       );
 
@@ -136,10 +135,9 @@ class AnimaService {
       if (appLanguage != null && appLanguage.trim().isNotEmpty) {
         await setAppLanguage(appLanguage);
       }
-      final configuredTemperature = await getTemperature();
       yield* rust_simple.sendMessageStream(
         message: text,
-        temperature: configuredTemperature,
+        temperature: 0.7,
         maxTokens: 512,
       );
     } catch (e, st) {

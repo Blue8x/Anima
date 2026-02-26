@@ -33,9 +33,10 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
         }
     };
 
-    let effective_temperature = db::get_temperature().unwrap_or(temperature.clamp(0.1, 1.0));
+    let _requested_temperature = temperature;
+    let effective_temperature = 0.7_f32;
 
-    let safe_max_tokens = max_tokens.min(500);
+    let safe_max_tokens = max_tokens.min(512);
 
     let generation_result = panic::catch_unwind(AssertUnwindSafe(|| {
         ai::generate_response_with_context(
@@ -49,14 +50,17 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
     let generated = match generation_result {
         Ok(Ok(output)) if !output.is_empty() => output,
         Ok(Ok(_)) => {
-            "[Error del Sistema: Inferencia devolvió salida vacía (possible OOM, context limit, or sampling collapse)]".to_string()
+            "[Error: Límite de memoria alcanzado] Inferencia devolvió salida vacía.".to_string()
         }
         Ok(Err(error)) => {
             let detail = format!("Error al generar respuesta LLM: {error}");
             eprintln!("{detail}");
-            format!("[Error del Sistema: {detail}]")
+            format_generation_error(&detail)
         }
-        Err(_) => "[Error del Sistema: Error interno del motor] panic during inference".to_string(),
+        Err(_) => {
+            "[Error: Límite de memoria alcanzado] El motor de inferencia se detuvo por seguridad."
+                .to_string()
+        }
     };
 
     if let Err(error) = insert_message_with_timeout("assistant", &generated, Duration::from_secs(5)) {
@@ -79,9 +83,10 @@ pub fn send_message_stream(
 
     let (_user_message_id, relevant_context) = prepare_message_context(&message)?;
 
-    let effective_temperature = db::get_temperature().unwrap_or(temperature.clamp(0.1, 1.0));
+    let _requested_temperature = temperature;
+    let effective_temperature = 0.7_f32;
 
-    let safe_max_tokens = max_tokens.min(500);
+    let safe_max_tokens = max_tokens.min(512);
 
     let generation_result = panic::catch_unwind(AssertUnwindSafe(|| {
         ai::generate_response_with_context_stream(
@@ -98,14 +103,20 @@ pub fn send_message_stream(
 
     let final_output = match generation_result {
         Ok(Ok(output)) => output,
-        Ok(Err(error)) => return Err(format!("Error al generar respuesta LLM: {error}")),
-        Err(_) => return Err("Error interno del motor: panic during inference".to_string()),
+        Ok(Err(error)) => {
+            let detail = format!("Error al generar respuesta LLM: {error}");
+            return Err(format_generation_error(&detail));
+        }
+        Err(_) => {
+            return Err(
+                "[Error: Límite de memoria alcanzado] El motor de inferencia se detuvo por seguridad."
+                    .to_string(),
+            );
+        }
     };
 
     if final_output.trim().is_empty() {
-        return Err(
-            "[Error del Sistema: Inferencia stream devolvió salida vacía (possible OOM, context limit, or sampling collapse)]".to_string(),
-        );
+        return Err("[Error: Límite de memoria alcanzado] Inferencia stream devolvió salida vacía.".to_string());
     }
 
     Ok(())
@@ -487,4 +498,16 @@ fn insert_message_with_timeout(role: &str, content: &str, timeout: Duration) -> 
         }
         Err(error) => Err(format!("DB insert channel error: {error}")),
     }
+}
+
+fn format_generation_error(detail: &str) -> String {
+    let lowered = detail.to_lowercase();
+    if lowered.contains("memory")
+        || lowered.contains("context")
+        || lowered.contains("kv")
+        || lowered.contains("oom")
+    {
+        return format!("[Error: Límite de memoria alcanzado] {detail}");
+    }
+    format!("[Error: Inferencia fallida] {detail}")
 }

@@ -15,9 +15,17 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_N_CTX: u32 = 2048;
-const REPEAT_PENALTY: f32 = 1.10;
+const REPEAT_PENALTY: f32 = 1.20;
 const REPEAT_LAST_N: i32 = 128;
-const STOP_SEQUENCES: [&str; 5] = ["\nAlex:", "\nUser:", "<|im_end|>", "<|eot_id|>", "<|end|>"];
+const MAX_GENERATION_TOKENS: u32 = 512;
+const STOP_SEQUENCES: [&str; 6] = [
+    "\nAlex:",
+    "\nUser:",
+    "<|im_end|>",
+    "<|im_start|>",
+    "<|eot_id|>",
+    "<|end|>",
+];
 const SUBCONSCIOUS_SYSTEM_PROMPT: &str = r#"Analyze the conversation and extract information strictly in JSON format with two keys:
 
 "semantic": Array of strings containing timeless facts, personality traits, rules, fears, and core identity.
@@ -685,7 +693,8 @@ fn generate_with_system_prompt_stream<F>(
 where
     F: FnMut(&str) -> Result<(), String>,
 {
-    let sampling_temperature = temperature.min(0.7);
+    let _requested_temperature = temperature;
+    let sampling_temperature = 0.7_f32;
 
     let backend_lock = get_or_init_backend()?;
     let backend = backend_lock
@@ -707,7 +716,7 @@ where
         .map_err(|error| format!("Context creation failed: {error}"))?;
 
     let prompt_text = format!(
-        "<|system|> {} <|end|>\n<|user|> {} <|end|>\n<|assistant|>",
+        "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
         system_prompt, user_prompt
     );
 
@@ -720,11 +729,31 @@ where
         return Ok(String::new());
     }
 
+    let context_limit = usize::try_from(DEFAULT_N_CTX)
+        .map_err(|_| "Invalid context configuration".to_string())?;
+    if prompt_tokens.len() >= context_limit.saturating_sub(8) {
+        return Err(
+            "[Error: Límite de memoria alcanzado] El prompt supera la ventana de contexto.".to_string(),
+        );
+    }
+
+    let requested_max_tokens = max_tokens.min(MAX_GENERATION_TOKENS);
+    let remaining_context = context_limit.saturating_sub(prompt_tokens.len() + 1);
+    let effective_max_tokens = usize::try_from(requested_max_tokens)
+        .map_err(|_| "Invalid max_tokens value".to_string())?
+        .min(remaining_context);
+
+    if effective_max_tokens == 0 {
+        return Err(
+            "[Error: Límite de memoria alcanzado] No hay espacio para generar más tokens.".to_string(),
+        );
+    }
+
     let mut prompt_batch =
         LlamaBatch::get_one(&prompt_tokens).map_err(|error| format!("Batch init failed: {error}"))?;
     context
         .decode(&mut prompt_batch)
-        .map_err(|error| format!("Initial decode failed: {error}"))?;
+        .map_err(|error| classify_inference_error(&format!("Initial decode failed: {error}")))?;
 
     let mut sampler = if sampling_temperature <= 0.0 {
         LlamaSampler::greedy()
@@ -772,7 +801,7 @@ where
     let mut position = i32::try_from(prompt_tokens.len())
         .map_err(|_| "Prompt is too long for current context".to_string())?;
 
-    for _ in 0..max_tokens {
+    for _ in 0..effective_max_tokens {
         let token = sampler.sample(&context, -1);
 
         if runtime.model.is_eog_token(token) {
@@ -804,7 +833,7 @@ where
 
             context
                 .decode(&mut token_batch)
-                .map_err(|error| format!("Decode loop failed: {error}"))?;
+                .map_err(|error| classify_inference_error(&format!("Decode loop failed: {error}")))?;
 
             position += 1;
             continue;
@@ -873,7 +902,7 @@ where
 
         context
             .decode(&mut token_batch)
-            .map_err(|error| format!("Decode loop failed: {error}"))?;
+            .map_err(|error| classify_inference_error(&format!("Decode loop failed: {error}")))?;
 
         position += 1;
     }
@@ -947,4 +976,12 @@ fn floor_char_boundary(text: &str, index: usize) -> usize {
         index -= 1;
     }
     index
+}
+
+fn classify_inference_error(detail: &str) -> String {
+    let lower = detail.to_lowercase();
+    if lower.contains("context") || lower.contains("kv") || lower.contains("memory") {
+        return format!("[Error: Límite de memoria alcanzado] {detail}");
+    }
+    format!("[Error: Inferencia fallida] {detail}")
 }
