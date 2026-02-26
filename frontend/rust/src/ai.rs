@@ -65,7 +65,10 @@ fn init_chat_model(backend: &LlamaBackend, model_path: &str) -> Result<(), Strin
 
     let model_file = Path::new(model_path);
     if !model_file.exists() {
-        return Err(format!("Model file not found: {}", model_file.display()));
+        return Err(format!(
+            "Model file not found exactly at: {}",
+            model_file.display()
+        ));
     }
 
     let model = LlamaModel::load_from_file(backend, model_file, &LlamaModelParams::default())
@@ -83,7 +86,10 @@ fn init_embedding_model(backend: &LlamaBackend, model_path: &str) -> Result<(), 
 
     let model_file = Path::new(model_path);
     if !model_file.exists() {
-        return Err(format!("Embedding model file not found: {}", model_file.display()));
+        return Err(format!(
+            "Model file not found exactly at: {}",
+            model_file.display()
+        ));
     }
 
     let model = LlamaModel::load_from_file(backend, model_file, &LlamaModelParams::default())

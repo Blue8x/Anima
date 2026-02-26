@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../services/anima_service.dart';
 import '../services/translation_service.dart';
+import '../src/rust/db.dart';
 import '../widgets/main_drawer.dart';
 import 'onboarding_screen.dart';
 
@@ -23,6 +24,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = true;
   bool _isExporting = false;
+  bool _isImporting = false;
   bool _isFactoryResetting = false;
 
   String _userName = '';
@@ -44,6 +46,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadSettings();
   }
+
+  static const String _importModeMerge = 'merge';
+  static const String _importModeReplace = 'replace';
 
   Future<void> _loadSettings() async {
     try {
@@ -266,6 +271,296 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() {
           _isExporting = false;
         });
+      }
+    }
+  }
+
+  Future<void> _importBrainFromFile() async {
+    if (_isImporting) return;
+
+    setState(() {
+      _isImporting = true;
+    });
+
+    try {
+      final translationService = context.read<TranslationService>();
+      String t(String key) => translationService.tr(key);
+
+      final picked = await FilePicker.platform.pickFiles(
+        dialogTitle: t('importBackup'),
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (picked == null || picked.files.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('importCancelled'))),
+        );
+        return;
+      }
+
+      final path = picked.files.single.path;
+      if (path == null || path.trim().isEmpty) {
+        throw Exception(t('invalidBackupFile'));
+      }
+
+      final rawPayload = await File(path).readAsString();
+      final payload = await _resolveImportPayload(rawPayload, t);
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception(t('invalidBackupFile'));
+      }
+
+      final importMode = await _askImportMode(t);
+      if (importMode == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('importCancelled'))),
+        );
+        return;
+      }
+
+      await _applyImportedBackup(decoded, importMode: importMode);
+
+      if (!mounted) return;
+      await _loadSettings();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t('brainImported'))),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${tr(context, 'errorImportingBrain')}: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isImporting = false;
+        });
+      }
+    }
+  }
+
+  Future<String> _resolveImportPayload(
+    String rawPayload,
+    String Function(String) t,
+  ) async {
+    final decoded = jsonDecode(rawPayload);
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception(t('invalidBackupFile'));
+    }
+
+    final format = decoded['format']?.toString() ?? '';
+    if (format != 'anima-backup-encrypted-v1') {
+      return rawPayload;
+    }
+
+    final password = await _askDecryptPassword(t);
+    if (password == null) {
+      throw Exception(t('importCancelled'));
+    }
+
+    if (password.trim().isEmpty) {
+      throw Exception(t('backupPasswordRequired'));
+    }
+
+    return _decryptBackupPayload(decoded, password.trim());
+  }
+
+  Future<String> _decryptBackupPayload(
+    Map<String, dynamic> envelope,
+    String password,
+  ) async {
+    final kdf = (envelope['kdf'] as Map?)?.cast<String, dynamic>() ?? {};
+    final cipher = (envelope['cipher'] as Map?)?.cast<String, dynamic>() ?? {};
+
+    final iterations = (kdf['iterations'] as num?)?.toInt() ?? 120000;
+    final saltB64 = kdf['salt']?.toString() ?? '';
+    final nonceB64 = cipher['nonce']?.toString() ?? '';
+    final tagB64 = cipher['tag']?.toString() ?? '';
+    final payloadB64 = envelope['payload']?.toString() ?? '';
+
+    if (saltB64.isEmpty || nonceB64.isEmpty || tagB64.isEmpty || payloadB64.isEmpty) {
+      throw const FormatException('Encrypted backup is missing required fields.');
+    }
+
+    final salt = base64Decode(saltB64);
+    final nonce = base64Decode(nonceB64);
+    final tag = base64Decode(tagB64);
+    final cipherText = base64Decode(payloadB64);
+
+    final pbkdf2 = Pbkdf2(
+      macAlgorithm: Hmac.sha256(),
+      iterations: iterations,
+      bits: 256,
+    );
+
+    final secretKey = await pbkdf2.deriveKey(
+      secretKey: SecretKey(utf8.encode(password)),
+      nonce: salt,
+    );
+
+    final algorithm = AesGcm.with256bits();
+    final secretBox = SecretBox(
+      cipherText,
+      nonce: nonce,
+      mac: Mac(tag),
+    );
+
+    final clearBytes = await algorithm.decrypt(
+      secretBox,
+      secretKey: secretKey,
+    );
+
+    return utf8.decode(clearBytes);
+  }
+
+  Future<String?> _askDecryptPassword(String Function(String) t) async {
+    final controller = TextEditingController();
+    bool obscure = true;
+
+    final result = await showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF18181B),
+              title: Text(t('decryptBackupTitle')),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    t('decryptBackupHint'),
+                    style: TextStyle(color: Colors.grey.shade300, fontSize: 13),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    obscureText: obscure,
+                    decoration: InputDecoration(
+                      labelText: t('backupPassword'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: !obscure,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            obscure = !(value ?? false);
+                          });
+                        },
+                      ),
+                      Expanded(child: Text(t('showPassword'))),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(null),
+                  child: Text(t('cancel')),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+                  child: Text(t('continue')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+    return result;
+  }
+
+  Future<String?> _askImportMode(String Function(String) t) async {
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF18181B),
+          title: Text(t('importModeTitle')),
+          content: Text(t('importModeHint')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(t('cancel')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(_importModeMerge),
+              child: Text(t('importModeMerge')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(_importModeReplace),
+              child: Text(t('importModeReplace')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _applyImportedBackup(
+    Map<String, dynamic> backup, {
+    required String importMode,
+  }) async {
+    final animaService = context.read<AnimaService>();
+    final translationService = context.read<TranslationService>();
+
+    final userName = (backup['user_name'] ?? '').toString().trim();
+    final languageRaw = (backup['app_language'] ?? '').toString().trim();
+    final language = languageRaw.isEmpty
+        ? ''
+        : TranslationService.normalizeLanguageCode(languageRaw);
+    final temperatureRaw = backup['temperature'];
+    final profileRaw = backup['user_profile'];
+
+    if (userName.isNotEmpty) {
+      await animaService.setUserName(userName);
+    }
+
+    if (language.isNotEmpty) {
+      await translationService.changeLanguage(language);
+    }
+
+    if (temperatureRaw is num) {
+      final temp = temperatureRaw.toDouble().clamp(0.1, 1.0);
+      await animaService.setTemperature(temp);
+    }
+
+    final shouldReplace = importMode == _importModeReplace;
+    final existingTraits = shouldReplace ? <ProfileTrait>[] : await animaService.getProfileTraits();
+    final existingSet = existingTraits
+        .map((item) => '${item.category.trim().toLowerCase()}||${item.content.trim().toLowerCase()}')
+        .toSet();
+
+    if (shouldReplace) {
+      await animaService.clearProfile();
+    }
+
+    if (profileRaw is List) {
+      for (final item in profileRaw) {
+        if (item is! Map) continue;
+        final category = (item['category'] ?? '').toString().trim();
+        final content = (item['content'] ?? '').toString().trim();
+        if (category.isEmpty || content.isEmpty) continue;
+
+        final fingerprint = '${category.toLowerCase()}||${content.toLowerCase()}';
+        if (existingSet.contains(fingerprint)) {
+          continue;
+        }
+
+        await animaService.addProfileTrait(category, content);
+        existingSet.add(fingerprint);
       }
     }
   }
@@ -701,6 +996,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           )
                         : const Icon(Icons.chevron_right),
                     onTap: _isExporting ? null : _exportBrainToFile,
+                  ),
+                ),
+                _settingCard(
+                  child: ListTile(
+                    leading: const Icon(Icons.upload_file_outlined),
+                    title: Text(tr(context, 'importBackup')),
+                    subtitle: Text(tr(context, 'restoreFromLocalJson')),
+                    trailing: _isImporting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.chevron_right),
+                    onTap: _isImporting ? null : _importBrainFromFile,
                   ),
                 ),
                 _settingCard(

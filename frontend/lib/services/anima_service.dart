@@ -1,6 +1,7 @@
 // Anima backend service
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:logger/logger.dart';
 import '../api.dart' as rust_api;
@@ -11,6 +12,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 class AnimaService {
   final Logger _logger = Logger();
   bool _initialized = false;
+  Future<void>? _initializingFuture;
   final StreamController<void> _factoryResetController = StreamController<void>.broadcast();
 
   AnimaService();
@@ -19,14 +21,82 @@ class AnimaService {
 
   Future<void> initialize() async {
     if (_initialized) return;
+    if (_initializingFuture != null) {
+      await _initializingFuture;
+      return;
+    }
 
-    _logger.i('Initializing Rust AI models');
-    await rust_simple.initApp(
-      chatModelPath: 'models/anima_v1.gguf',
-      embeddingModelPath: 'models/all-MiniLM-L6-v2.gguf',
+    final completer = Completer<void>();
+    _initializingFuture = completer.future;
+
+    try {
+      final chatModelPath = _resolveModelPath('anima_v1.gguf');
+      final embeddingModelPath = _resolveModelPath('all-MiniLM-L6-v2.gguf');
+
+      if (chatModelPath == null) {
+        final localAppData = Platform.environment['LOCALAPPDATA'] ?? '';
+        throw Exception(
+          'Model file not found exactly at: $localAppData${Platform.pathSeparator}Anima${Platform.pathSeparator}anima_v1.gguf',
+        );
+      }
+
+      if (embeddingModelPath == null) {
+        final localAppData = Platform.environment['LOCALAPPDATA'] ?? '';
+        throw Exception(
+          'Embedding model file not found exactly at: $localAppData${Platform.pathSeparator}Anima${Platform.pathSeparator}all-MiniLM-L6-v2.gguf',
+        );
+      }
+
+      _logger.i('Initializing Rust AI models');
+      await rust_simple.initApp(
+        chatModelPath: chatModelPath,
+        embeddingModelPath: embeddingModelPath,
+      );
+      _initialized = true;
+      _logger.i('Rust AI models initialized');
+      completer.complete();
+    } catch (e, st) {
+      _logger.e('Rust AI initialization failed', error: e, stackTrace: st);
+      completer.completeError(e, st);
+      rethrow;
+    } finally {
+      _initializingFuture = null;
+    }
+  }
+
+  String? _resolveModelPath(String fileName) {
+    final candidates = <String>[];
+
+    final localAppData = Platform.environment['LOCALAPPDATA'];
+    if (localAppData != null && localAppData.trim().isNotEmpty) {
+      candidates.add('$localAppData${Platform.pathSeparator}Anima${Platform.pathSeparator}$fileName');
+      candidates.add(
+        '$localAppData${Platform.pathSeparator}Anima${Platform.pathSeparator}models${Platform.pathSeparator}$fileName',
+      );
+    }
+
+    final executableDir = File(Platform.resolvedExecutable).parent.path;
+    candidates.add('$executableDir${Platform.pathSeparator}$fileName');
+    candidates.add(
+      '$executableDir${Platform.pathSeparator}models${Platform.pathSeparator}$fileName',
     );
-    _initialized = true;
-    _logger.i('Rust AI models initialized');
+
+    final cwd = Directory.current.path;
+    candidates.add('$cwd${Platform.pathSeparator}models${Platform.pathSeparator}$fileName');
+    candidates.add(
+      '$cwd${Platform.pathSeparator}..${Platform.pathSeparator}models${Platform.pathSeparator}$fileName',
+    );
+    candidates.add(
+      '$cwd${Platform.pathSeparator}..${Platform.pathSeparator}..${Platform.pathSeparator}models${Platform.pathSeparator}$fileName',
+    );
+
+    for (final candidate in candidates) {
+      if (File(candidate).existsSync()) {
+        return File(candidate).absolute.path;
+      }
+    }
+
+    return null;
   }
 
   Future<String> processMessage(String text, {String? appLanguage}) async {
@@ -34,6 +104,7 @@ class AnimaService {
     _logger.i('processMessage start');
     _logger.d('processMessage payload length=${text.length}');
     try {
+      await initialize();
       if (appLanguage != null && appLanguage.trim().isNotEmpty) {
         await setAppLanguage(appLanguage);
       }
@@ -43,6 +114,15 @@ class AnimaService {
         temperature: configuredTemperature,
         maxTokens: 512,
       );
+
+      if (response.trim().isEmpty) {
+        throw Exception('[Error del Sistema: Falló la inferencia del modelo]');
+      }
+
+      if (response.startsWith('Error:') || response.startsWith('[Error del Sistema:')) {
+        throw Exception(response);
+      }
+
       stopwatch.stop();
       _logger.i('processMessage success in ${stopwatch.elapsedMilliseconds}ms');
       _logger.d('processMessage response length=${response.length}');
@@ -65,6 +145,7 @@ class AnimaService {
   }
 
   Stream<String> _streamMessageInternal(String text, {String? appLanguage}) async* {
+    await initialize();
     if (appLanguage != null && appLanguage.trim().isNotEmpty) {
       await setAppLanguage(appLanguage);
     }
@@ -91,12 +172,18 @@ class AnimaService {
   Future<String> generateProactiveGreeting(String timeOfDay, {String? appLanguage}) async {
     _logger.i('generateProactiveGreeting start timeOfDay=$timeOfDay');
     try {
+      await initialize();
       if (appLanguage != null && appLanguage.trim().isNotEmpty) {
         await setAppLanguage(appLanguage);
       }
       final greeting = await rust_simple.generateProactiveGreeting(
         timeOfDay: timeOfDay,
       );
+
+      if (greeting.trim().isEmpty) {
+        throw Exception('[Error del Sistema: Falló la inferencia del modelo]');
+      }
+
       _logger.i('generateProactiveGreeting success length=${greeting.length}');
       return greeting;
     } catch (e, st) {

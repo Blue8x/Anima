@@ -139,7 +139,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
-      final uiLanguage = context.read<TranslationService>().language;
+      final translationService = context.read<TranslationService>();
+
+      const maxInitAttempts = 3;
+      for (var attempt = 1; attempt <= maxInitAttempts; attempt++) {
+        try {
+          await animaService.initialize();
+          break;
+        } catch (e) {
+          final errorText = e.toString().toLowerCase();
+          final isRuntimeNotReady =
+              errorText.contains('runtime is not initialized') ||
+              errorText.contains('motor ia no cargado');
+
+          if (isRuntimeNotReady && attempt < maxInitAttempts) {
+            await Future.delayed(const Duration(milliseconds: 900));
+            continue;
+          }
+
+          rethrow;
+        }
+      }
+
+      final uiLanguage = translationService.language;
       final greeting = await animaService.generateProactiveGreeting(
         timeOfDay,
         appLanguage: uiLanguage,
@@ -161,11 +183,22 @@ class _HomeScreenState extends State<HomeScreen> {
       _cacheHomeState();
       _scrollToBottom();
     } catch (e) {
+      final errorText = e.toString().toLowerCase();
+      final isRuntimeNotReady =
+          errorText.contains('runtime is not initialized') ||
+          errorText.contains('motor ia no cargado');
+
       if (!mounted) return;
       setState(() {
         isTyping = false;
       });
       _cacheHomeState();
+
+      if (isRuntimeNotReady) {
+        debugPrint('[greeting] skipped transient init error: $e');
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${tr(context, 'failedGenerateGreeting')}: $e')),
       );
@@ -243,6 +276,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (finalAssistantMessage.trim().isNotEmpty) {
         await animaService.saveAssistantMessage(finalAssistantMessage);
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _sessionMessages = _sessionMessages
+              .map(
+                (message) => message.id == assistantMessageId
+                    ? ChatMessage(
+                        id: message.id,
+                        role: message.role,
+                        content: '[Error del Sistema: Falló la inferencia del modelo]',
+                        timestamp: message.timestamp,
+                      )
+                    : message,
+              )
+              .toList();
+        });
+        _cacheHomeState();
       }
 
       if (!mounted) return;

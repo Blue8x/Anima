@@ -21,7 +21,7 @@ pub fn greet(name: String) -> String {
 #[flutter_rust_bridge::frb]
 pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> String {
     if let Some(error) = current_init_error() {
-        return format!("Error: {error}");
+        return format!("[Error del Sistema: Motor IA no cargado] {error}");
     }
 
     let (_user_message_id, relevant_context) = match prepare_message_context(&message) {
@@ -41,11 +41,11 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
         max_tokens,
     ) {
         Ok(output) if !output.is_empty() => output,
-        Ok(_) => "I do not have a response yet.".to_string(),
+        Ok(_) => "[Error del Sistema: Falló la inferencia del modelo] Respuesta vacía".to_string(),
         Err(error) => {
             let detail = format!("Error al generar respuesta LLM: {error}");
             eprintln!("{detail}");
-            format!("Error: {detail}")
+            format!("[Error del Sistema: {detail}]")
         }
     };
 
@@ -64,14 +64,14 @@ pub fn send_message_stream(
     sink: StreamSink<String>,
 ) -> Result<(), String> {
     if let Some(error) = current_init_error() {
-        return Err(error);
+        return Err(format!("[Error del Sistema: Motor IA no cargado] {error}"));
     }
 
     let (_user_message_id, relevant_context) = prepare_message_context(&message)?;
 
     let effective_temperature = db::get_temperature().unwrap_or(temperature.clamp(0.1, 1.0));
 
-    ai::generate_response_with_context_stream(
+    let final_output = ai::generate_response_with_context_stream(
         &message,
         &relevant_context,
         effective_temperature,
@@ -81,6 +81,10 @@ pub fn send_message_stream(
             Ok(())
         },
     )?;
+
+    if final_output.trim().is_empty() {
+        return Err("[Error del Sistema: Falló la inferencia del modelo] Respuesta vacía".to_string());
+    }
 
     Ok(())
 }
@@ -125,7 +129,18 @@ pub fn save_assistant_message(message: String) -> bool {
 
 #[flutter_rust_bridge::frb]
 pub fn generate_proactive_greeting(time_of_day: String) -> Result<String, String> {
+    if let Some(error) = current_init_error() {
+        return Err(format!("[Error del Sistema: Motor IA no cargado] {error}"));
+    }
+
     ai::generate_proactive_greeting(&time_of_day)
+        .and_then(|output| {
+            if output.trim().is_empty() {
+                Err("[Error del Sistema: Falló la inferencia del modelo] Respuesta vacía".to_string())
+            } else {
+                Ok(output)
+            }
+        })
 }
 
 #[flutter_rust_bridge::frb]
@@ -342,8 +357,14 @@ fn set_init_error(value: Option<String>) {
 
 fn resolve_model_path(model_path: &str) -> Result<String, String> {
     let as_path = PathBuf::from(model_path);
-    if as_path.is_absolute() && as_path.exists() {
-        return Ok(as_path.to_string_lossy().to_string());
+    if as_path.is_absolute() {
+        if as_path.exists() {
+            return Ok(as_path.to_string_lossy().to_string());
+        }
+        return Err(format!(
+            "Model file not found exactly at: {}",
+            as_path.display()
+        ));
     }
 
     let cwd = std::env::current_dir().map_err(|error| {
