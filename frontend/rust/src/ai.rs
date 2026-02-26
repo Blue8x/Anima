@@ -16,6 +16,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_N_CTX: u32 = 2048;
+const SAFE_N_BATCH: u32 = 512;
 const REPEAT_PENALTY: f32 = 1.20;
 const REPEAT_LAST_N: i32 = 128;
 const MAX_GENERATION_TOKENS: u32 = 512;
@@ -49,7 +50,7 @@ struct EmbeddingRuntime {
 static LLAMA_BACKEND: OnceLock<Mutex<LlamaBackend>> = OnceLock::new();
 static CHAT_RUNTIME: OnceLock<Mutex<ChatRuntime>> = OnceLock::new();
 static EMBEDDING_RUNTIME: OnceLock<Mutex<EmbeddingRuntime>> = OnceLock::new();
-static PROMPT_LEAK_REGEX: OnceLock<Regex> = OnceLock::new();
+static PROMPT_LEAK_REGEX: OnceLock<Option<Regex>> = OnceLock::new();
 
 pub fn init_ai_models(chat_model_path: &str, embedding_model_path: &str) -> Result<(), String> {
     let backend_lock = get_or_init_backend()?;
@@ -90,7 +91,10 @@ fn init_chat_model(backend: &LlamaBackend, model_path: &str) -> Result<(), Strin
     let model = load_model_force_no_mmap(model_file)?;
     let leaked_model: &'static LlamaModel = Box::leak(Box::new(model));
 
-    let context_params = LlamaContextParams::default().with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX));
+    let context_params = LlamaContextParams::default()
+        .with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX))
+        .with_n_batch(SAFE_N_BATCH)
+        .with_n_ubatch(SAFE_N_BATCH);
     let context = leaked_model
         .new_context(backend, context_params)
         .map_err(|error| format!("Context creation failed: {error}"))?;
@@ -166,6 +170,8 @@ pub fn generate_embedding(text: &str) -> Result<Vec<f32>, String> {
 
     let context_params = LlamaContextParams::default()
         .with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX))
+        .with_n_batch(SAFE_N_BATCH)
+        .with_n_ubatch(SAFE_N_BATCH)
         .with_embeddings(true)
         .with_pooling_type(LlamaPoolingType::Mean);
 
@@ -748,6 +754,8 @@ where
         .lock()
         .map_err(|_| "AI runtime mutex is poisoned".to_string())?;
 
+    runtime.context.clear_kv_cache();
+
     let prompt_text = format!(
         "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
         system_prompt, user_prompt
@@ -781,8 +789,6 @@ where
             "[Error: Límite de memoria alcanzado] No hay espacio para generar más tokens.".to_string(),
         );
     }
-
-    runtime.context.clear_kv_cache();
 
     let mut prompt_batch =
         LlamaBatch::get_one(&prompt_tokens).map_err(|error| format!("Batch init failed: {error}"))?;
@@ -982,21 +988,27 @@ fn find_stop_index(text: &str) -> Option<usize> {
 }
 
 fn find_prompt_leak_index(text: &str) -> Option<usize> {
-    let regex = prompt_leak_regex();
+    let regex = prompt_leak_regex()?;
     regex.find(text).map(|matched| matched.start())
 }
 
-fn prompt_leak_regex() -> &'static Regex {
-    PROMPT_LEAK_REGEX.get_or_init(|| {
-        Regex::new(
-            r"(?is)\[[^\]]*(?:System\s+note:|Remember\s+your\s+CRITICAL\s+INSTRUCTION|CRITICAL\s+INSTRUCTION)\s*[^\]]*\]",
-        )
-        .expect("valid prompt leak regex")
-    })
+fn prompt_leak_regex() -> Option<&'static Regex> {
+    PROMPT_LEAK_REGEX
+        .get_or_init(|| {
+            Regex::new(
+                r"(?is)\[[^\]]*(?:System\s+note:|Remember\s+your\s+CRITICAL\s+INSTRUCTION|CRITICAL\s+INSTRUCTION)\s*[^\]]*\]",
+            )
+            .ok()
+        })
+        .as_ref()
 }
 
 fn sanitize_model_output(text: &str) -> String {
-    let removed = prompt_leak_regex().replace_all(text, "");
+    let removed = if let Some(regex) = prompt_leak_regex() {
+        regex.replace_all(text, "").into_owned()
+    } else {
+        text.to_string()
+    };
     normalize_escaped_newlines(&removed)
 }
 
