@@ -1,6 +1,17 @@
 [target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "target-cpu=x86-64"]
+rustflags = [
+	"-C",
+	"target-cpu=x86-64",
+	"-C",
+	"target-feature=-avx,-avx2,-fma,-f16c"
+]
 
 [env]
 LLAMA_STATIC_CRT = "1"
 CMAKE_GGML_OPENMP = "OFF"
+CMAKE_GGML_NATIVE = "OFF"
+CMAKE_GGML_AVX = "OFF"
+CMAKE_GGML_AVX2 = "OFF"
+CMAKE_GGML_FMA = "OFF"
+CMAKE_GGML_F16C = "OFF"
+CMAKE_GGML_AVX512 = "OFF"
