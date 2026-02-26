@@ -236,6 +236,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _sendMessage(String content) async {
     if (content.trim().isEmpty) return;
 
+    final recentMessagesForRust = _recentMessagesForRustContext();
+
     final userMessageId = DateTime.now().millisecondsSinceEpoch;
     final assistantMessageId = userMessageId + 1;
     final nowIso = DateTime.now().toUtc().toIso8601String();
@@ -264,7 +266,11 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final animaService = context.read<AnimaService>();
       final uiLanguage = context.read<TranslationService>().language;
-      await for (final chunk in animaService.streamMessage(content, appLanguage: uiLanguage)) {
+      await for (final chunk in animaService.streamMessage(
+        content,
+        appLanguage: uiLanguage,
+        recentMessages: recentMessagesForRust,
+      )) {
         if (!mounted) return;
         final normalizedChunk = _normalizeModelText(chunk);
         setState(() {
@@ -344,6 +350,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _scrollToBottom();
+  }
+
+  List<ChatMessage> _recentMessagesForRustContext() {
+    final merged = <ChatMessage>[
+      ..._historyMessages,
+      ..._sessionMessages,
+    ].where((message) {
+      final role = message.role.toLowerCase();
+      return (role == 'user' || role == 'assistant') && message.content.trim().isNotEmpty;
+    }).toList();
+
+    if (merged.length <= 6) {
+      return merged;
+    }
+
+    return merged.sublist(merged.length - 6);
   }
 
   @override

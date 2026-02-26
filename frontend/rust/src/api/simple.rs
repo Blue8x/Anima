@@ -13,6 +13,10 @@ use std::thread;
 use std::time::Duration;
 
 static INIT_ERROR: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+const HISTORY_START_TAG: &str = "<ANIMA_HISTORY>";
+const HISTORY_END_TAG: &str = "</ANIMA_HISTORY>";
+const USER_START_TAG: &str = "<ANIMA_USER>";
+const USER_END_TAG: &str = "</ANIMA_USER>";
 
 #[flutter_rust_bridge::frb(sync)] // Synchronous mode for simplicity of the demo
 pub fn greet(name: String) -> String {
@@ -25,7 +29,7 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
         return format!("[Error del Sistema: Motor IA no cargado] {error}");
     }
 
-    let (_user_message_id, relevant_context) = match prepare_message_context(&message) {
+    let (_user_message_id, relevant_context, model_prompt) = match prepare_message_context(&message) {
         Ok(values) => values,
         Err(detail) => {
             eprintln!("{detail}");
@@ -40,7 +44,7 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
 
     let generation_result = panic::catch_unwind(AssertUnwindSafe(|| {
         ai::generate_response_with_context(
-            &message,
+            &model_prompt,
             &relevant_context,
             effective_temperature,
             safe_max_tokens,
@@ -81,7 +85,7 @@ pub fn send_message_stream(
         return Err(format!("[Error del Sistema: Motor IA no cargado] {error}"));
     }
 
-    let (_user_message_id, relevant_context) = prepare_message_context(&message)?;
+    let (_user_message_id, relevant_context, model_prompt) = prepare_message_context(&message)?;
 
     let _requested_temperature = temperature;
     let effective_temperature = 0.7_f32;
@@ -90,7 +94,7 @@ pub fn send_message_stream(
 
     let generation_result = panic::catch_unwind(AssertUnwindSafe(|| {
         ai::generate_response_with_context_stream(
-            &message,
+            &model_prompt,
             &relevant_context,
             effective_temperature,
             safe_max_tokens,
@@ -434,13 +438,15 @@ fn resolve_model_path(model_path: &str) -> Result<String, String> {
     ))
 }
 
-fn prepare_message_context(message: &str) -> Result<(i64, Vec<String>), String> {
-    let user_message_id = insert_message_with_timeout("user", message, Duration::from_secs(5))
+fn prepare_message_context(message: &str) -> Result<(i64, Vec<String>, String), String> {
+    let (user_message, model_prompt) = parse_client_message_payload(message);
+
+    let user_message_id = insert_message_with_timeout("user", &user_message, Duration::from_secs(5))
         .map_err(|error| format!("Error de DB al guardar mensaje de usuario: {error}"))?;
 
     let mut relevant_context = Vec::<String>::new();
 
-    match ai::generate_embedding(message) {
+    match ai::generate_embedding(&user_message) {
         Ok(embedding) if !embedding.is_empty() => {
             db::insert_memory(
                 user_message_id,
@@ -476,7 +482,38 @@ fn prepare_message_context(message: &str) -> Result<(i64, Vec<String>), String> 
         }
     }
 
-    Ok((user_message_id, relevant_context))
+    Ok((user_message_id, relevant_context, model_prompt))
+}
+
+fn parse_client_message_payload(payload: &str) -> (String, String) {
+    let history = extract_tag_content(payload, HISTORY_START_TAG, HISTORY_END_TAG)
+        .map(|content| content.trim().to_string())
+        .unwrap_or_default();
+
+    let user = extract_tag_content(payload, USER_START_TAG, USER_END_TAG)
+        .map(|content| content.trim().to_string())
+        .unwrap_or_else(|| payload.trim().to_string());
+
+    if user.is_empty() {
+        return (payload.trim().to_string(), payload.trim().to_string());
+    }
+
+    if history.is_empty() {
+        return (user.clone(), user);
+    }
+
+    let model_prompt = format!(
+        "Historial reciente (máximo 6 mensajes):\n{}\n\nMensaje actual del usuario:\n{}",
+        history, user
+    );
+
+    (user, model_prompt)
+}
+
+fn extract_tag_content<'a>(input: &'a str, start_tag: &str, end_tag: &str) -> Option<&'a str> {
+    let start_index = input.find(start_tag)? + start_tag.len();
+    let end_index = input[start_index..].find(end_tag)? + start_index;
+    Some(&input[start_index..end_index])
 }
 
 fn insert_message_with_timeout(role: &str, content: &str, timeout: Duration) -> Result<i64, String> {

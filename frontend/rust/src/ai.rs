@@ -79,7 +79,19 @@ fn init_chat_model(backend: &LlamaBackend, model_path: &str) -> Result<(), Strin
         ));
     }
 
-    let model = LlamaModel::load_from_file(backend, model_file, &LlamaModelParams::default())
+    let disable_mmap = std::env::var("ANIMA_DISABLE_MMAP")
+        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+    if disable_mmap {
+        eprintln!(
+            "ANIMA_DISABLE_MMAP is set, but current llama-cpp-2 API does not expose with_use_mmap(false); using default mmap=true."
+        );
+    }
+
+    let model_params = LlamaModelParams::default().with_n_gpu_layers(0);
+
+    let model = LlamaModel::load_from_file(backend, model_file, &model_params)
         .map_err(|error| format!("Model load failed: {error}"))?;
 
     CHAT_RUNTIME
@@ -100,7 +112,19 @@ fn init_embedding_model(backend: &LlamaBackend, model_path: &str) -> Result<(), 
         ));
     }
 
-    let model = LlamaModel::load_from_file(backend, model_file, &LlamaModelParams::default())
+    let disable_mmap = std::env::var("ANIMA_DISABLE_MMAP")
+        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+    if disable_mmap {
+        eprintln!(
+            "ANIMA_DISABLE_MMAP is set, but current llama-cpp-2 API does not expose with_use_mmap(false); using default mmap=true."
+        );
+    }
+
+    let model_params = LlamaModelParams::default().with_n_gpu_layers(0);
+
+    let model = LlamaModel::load_from_file(backend, model_file, &model_params)
         .map_err(|error| format!("Embedding model load failed: {error}"))?;
 
     EMBEDDING_RUNTIME

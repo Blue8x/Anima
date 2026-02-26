@@ -10,6 +10,7 @@ import '../src/rust/api/simple.dart' as rust_simple;
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 class AnimaService {
+  static const int _maxRustHistoryMessages = 6;
   final Logger _logger = Logger();
   bool _initialized = false;
   Future<void>? _initializingFuture;
@@ -84,7 +85,11 @@ class AnimaService {
     print('Error detallado de Rust: $technical');
   }
 
-  Future<String> processMessage(String text, {String? appLanguage}) async {
+  Future<String> processMessage(
+    String text, {
+    String? appLanguage,
+    List<ChatMessage>? recentMessages,
+  }) async {
     final stopwatch = Stopwatch()..start();
     _logger.i('processMessage start');
     _logger.d('processMessage payload length=${text.length}');
@@ -94,7 +99,7 @@ class AnimaService {
         await setAppLanguage(appLanguage);
       }
       final response = await rust_simple.sendMessage(
-        message: text,
+        message: _buildRustPayload(text, recentMessages),
         temperature: 0.7,
         maxTokens: 512,
       );
@@ -123,20 +128,32 @@ class AnimaService {
     }
   }
 
-  Stream<String> streamMessage(String text, {String? appLanguage}) {
+  Stream<String> streamMessage(
+    String text, {
+    String? appLanguage,
+    List<ChatMessage>? recentMessages,
+  }) {
     _logger.i('streamMessage start');
     _logger.d('streamMessage payload length=${text.length}');
-    return _streamMessageInternal(text, appLanguage: appLanguage);
+    return _streamMessageInternal(
+      text,
+      appLanguage: appLanguage,
+      recentMessages: recentMessages,
+    );
   }
 
-  Stream<String> _streamMessageInternal(String text, {String? appLanguage}) async* {
+  Stream<String> _streamMessageInternal(
+    String text, {
+    String? appLanguage,
+    List<ChatMessage>? recentMessages,
+  }) async* {
     try {
       await initialize();
       if (appLanguage != null && appLanguage.trim().isNotEmpty) {
         await setAppLanguage(appLanguage);
       }
       yield* rust_simple.sendMessageStream(
-        message: text,
+        message: _buildRustPayload(text, recentMessages),
         temperature: 0.7,
         maxTokens: 512,
       );
@@ -145,6 +162,24 @@ class AnimaService {
       _logger.e('streamMessage failed', error: e, stackTrace: st);
       rethrow;
     }
+  }
+
+  String _buildRustPayload(String text, List<ChatMessage>? recentMessages) {
+    if (recentMessages == null || recentMessages.isEmpty) {
+      return text;
+    }
+
+    final boundedHistory = recentMessages
+        .where((message) => message.content.trim().isNotEmpty)
+        .take(_maxRustHistoryMessages)
+        .map((message) => '${message.role}: ${message.content.trim()}')
+        .join('\n');
+
+    if (boundedHistory.isEmpty) {
+      return text;
+    }
+
+    return '<ANIMA_HISTORY>\n$boundedHistory\n</ANIMA_HISTORY>\n<ANIMA_USER>\n${text.trim()}\n</ANIMA_USER>';
   }
 
   Future<bool> saveAssistantMessage(String text) async {
