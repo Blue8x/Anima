@@ -10,7 +10,7 @@ import '../src/rust/api/simple.dart' as rust_simple;
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 class AnimaService {
-  static const int _maxRustHistoryMessages = 6;
+  static const int _maxRustHistoryMessages = 4;
   final Logger _logger = Logger();
   bool _initialized = false;
   Future<void>? _initializingFuture;

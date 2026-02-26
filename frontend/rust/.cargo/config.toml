@@ -1,2 +1,6 @@
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-cpu=x86-64"]
+
+[env]
+LLAMA_STATIC_CRT = "1"
+CMAKE_GGML_OPENMP = "OFF"

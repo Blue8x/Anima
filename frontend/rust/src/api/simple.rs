@@ -503,7 +503,7 @@ fn parse_client_message_payload(payload: &str) -> (String, String) {
     }
 
     let model_prompt = format!(
-        "Historial reciente (máximo 6 mensajes):\n{}\n\nMensaje actual del usuario:\n{}",
+        "Historial reciente (máximo 4 mensajes):\n{}\n\nMensaje actual del usuario:\n{}",
         history, user
     );
 

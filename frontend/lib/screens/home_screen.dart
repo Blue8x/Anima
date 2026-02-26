@@ -361,11 +361,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return (role == 'user' || role == 'assistant') && message.content.trim().isNotEmpty;
     }).toList();
 
-    if (merged.length <= 6) {
+    if (merged.length <= 4) {
       return merged;
     }
 
-    return merged.sublist(merged.length - 6);
+    return merged.sublist(merged.length - 4);
   }
 
   @override

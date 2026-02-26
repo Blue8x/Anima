@@ -3,14 +3,15 @@ use chrono::Local;
 use llama_cpp_2::context::params::{LlamaContextParams, LlamaPoolingType};
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
-use llama_cpp_2::model::params::LlamaModelParams;
 use llama_cpp_2::model::{AddBos, LlamaModel};
 use llama_cpp_2::sampling::LlamaSampler;
 use regex::Regex;
 use serde_json::{json, Value};
+use std::ffi::CString;
 use std::collections::HashSet;
 use std::num::NonZeroU32;
 use std::path::Path;
+use std::ptr::NonNull;
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -34,13 +35,20 @@ const SUBCONSCIOUS_SYSTEM_PROMPT: &str = r#"Analyze the conversation and extract
 
 Output only valid JSON, with exactly those two keys and string arrays. Do not include markdown, comments, or extra text."#;
 
-struct AiRuntime {
+struct ChatRuntime {
+    model: &'static LlamaModel,
+    context: llama_cpp_2::context::LlamaContext<'static>,
+}
+
+unsafe impl Send for ChatRuntime {}
+
+struct EmbeddingRuntime {
     model: LlamaModel,
 }
 
 static LLAMA_BACKEND: OnceLock<Mutex<LlamaBackend>> = OnceLock::new();
-static CHAT_RUNTIME: OnceLock<Mutex<AiRuntime>> = OnceLock::new();
-static EMBEDDING_RUNTIME: OnceLock<Mutex<AiRuntime>> = OnceLock::new();
+static CHAT_RUNTIME: OnceLock<Mutex<ChatRuntime>> = OnceLock::new();
+static EMBEDDING_RUNTIME: OnceLock<Mutex<EmbeddingRuntime>> = OnceLock::new();
 static PROMPT_LEAK_REGEX: OnceLock<Regex> = OnceLock::new();
 
 pub fn init_ai_models(chat_model_path: &str, embedding_model_path: &str) -> Result<(), String> {
@@ -79,27 +87,23 @@ fn init_chat_model(backend: &LlamaBackend, model_path: &str) -> Result<(), Strin
         ));
     }
 
-    let disable_mmap = std::env::var("ANIMA_DISABLE_MMAP")
-        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
+    let model = load_model_force_no_mmap(model_file)?;
+    let leaked_model: &'static LlamaModel = Box::leak(Box::new(model));
 
-    if disable_mmap {
-        eprintln!(
-            "ANIMA_DISABLE_MMAP is set, but current llama-cpp-2 API does not expose with_use_mmap(false); using default mmap=true."
-        );
-    }
-
-    let model_params = LlamaModelParams::default().with_n_gpu_layers(0);
-
-    let model = LlamaModel::load_from_file(backend, model_file, &model_params)
-        .map_err(|error| format!("Model load failed: {error}"))?;
+    let context_params = LlamaContextParams::default().with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX));
+    let context = leaked_model
+        .new_context(backend, context_params)
+        .map_err(|error| format!("Context creation failed: {error}"))?;
 
     CHAT_RUNTIME
-        .set(Mutex::new(AiRuntime { model }))
+        .set(Mutex::new(ChatRuntime {
+            model: leaked_model,
+            context,
+        }))
         .map_err(|_| "AI runtime was already initialized".to_string())
 }
 
-fn init_embedding_model(backend: &LlamaBackend, model_path: &str) -> Result<(), String> {
+fn init_embedding_model(_backend: &LlamaBackend, model_path: &str) -> Result<(), String> {
     if EMBEDDING_RUNTIME.get().is_some() {
         return Ok(());
     }
@@ -112,24 +116,38 @@ fn init_embedding_model(backend: &LlamaBackend, model_path: &str) -> Result<(), 
         ));
     }
 
-    let disable_mmap = std::env::var("ANIMA_DISABLE_MMAP")
-        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
-
-    if disable_mmap {
-        eprintln!(
-            "ANIMA_DISABLE_MMAP is set, but current llama-cpp-2 API does not expose with_use_mmap(false); using default mmap=true."
-        );
-    }
-
-    let model_params = LlamaModelParams::default().with_n_gpu_layers(0);
-
-    let model = LlamaModel::load_from_file(backend, model_file, &model_params)
+    let model = load_model_force_no_mmap(model_file)
         .map_err(|error| format!("Embedding model load failed: {error}"))?;
 
     EMBEDDING_RUNTIME
-        .set(Mutex::new(AiRuntime { model }))
+        .set(Mutex::new(EmbeddingRuntime { model }))
         .map_err(|_| "Embedding runtime was already initialized".to_string())
+}
+
+fn load_model_force_no_mmap(model_file: &Path) -> Result<LlamaModel, String> {
+    let path = model_file
+        .to_str()
+        .ok_or_else(|| format!("Invalid model path: {}", model_file.display()))?;
+
+    let c_path = CString::new(path)
+        .map_err(|error| format!("Invalid model path for FFI: {error}"))?;
+
+    let mut raw_params = unsafe { llama_cpp_sys_2::llama_model_default_params() };
+    raw_params.use_mmap = false;
+    raw_params.n_gpu_layers = 0;
+
+    let raw_model = unsafe {
+        llama_cpp_sys_2::llama_load_model_from_file(c_path.as_ptr(), raw_params)
+    };
+
+    let model_ptr: NonNull<llama_cpp_sys_2::llama_model> = NonNull::new(raw_model)
+        .ok_or_else(|| format!("Model load failed (null): {}", model_file.display()))?;
+
+    let model = unsafe {
+        std::mem::transmute::<NonNull<llama_cpp_sys_2::llama_model>, LlamaModel>(model_ptr)
+    };
+
+    Ok(model)
 }
 
 pub fn generate_embedding(text: &str) -> Result<Vec<f32>, String> {
@@ -720,24 +738,15 @@ where
     let _requested_temperature = temperature;
     let sampling_temperature = 0.7_f32;
 
-    let backend_lock = get_or_init_backend()?;
-    let backend = backend_lock
-        .lock()
-        .map_err(|_| "Llama backend mutex is poisoned".to_string())?;
+    let _backend_lock = get_or_init_backend()?;
 
     let runtime_lock = CHAT_RUNTIME
         .get()
         .ok_or_else(|| "AI runtime is not initialized".to_string())?;
 
-    let runtime = runtime_lock
+    let mut runtime = runtime_lock
         .lock()
         .map_err(|_| "AI runtime mutex is poisoned".to_string())?;
-
-    let context_params = LlamaContextParams::default().with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX));
-    let mut context = runtime
-        .model
-        .new_context(&backend, context_params)
-        .map_err(|error| format!("Context creation failed: {error}"))?;
 
     let prompt_text = format!(
         "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
@@ -773,9 +782,12 @@ where
         );
     }
 
+    runtime.context.clear_kv_cache();
+
     let mut prompt_batch =
         LlamaBatch::get_one(&prompt_tokens).map_err(|error| format!("Batch init failed: {error}"))?;
-    context
+    runtime
+        .context
         .decode(&mut prompt_batch)
         .map_err(|error| classify_inference_error(&format!("Initial decode failed: {error}")))?;
 
@@ -826,7 +838,7 @@ where
         .map_err(|_| "Prompt is too long for current context".to_string())?;
 
     for _ in 0..effective_max_tokens {
-        let token = sampler.sample(&context, -1);
+        let token = sampler.sample(&runtime.context, -1);
 
         if runtime.model.is_eog_token(token) {
             break;
@@ -855,7 +867,8 @@ where
                 .add(token, position, &[0], true)
                 .map_err(|error| format!("Token batch add failed: {error}"))?;
 
-            context
+            runtime
+                .context
                 .decode(&mut token_batch)
                 .map_err(|error| classify_inference_error(&format!("Decode loop failed: {error}")))?;
 
@@ -924,7 +937,8 @@ where
             .add(token, position, &[0], true)
             .map_err(|error| format!("Token batch add failed: {error}"))?;
 
-        context
+        runtime
+            .context
             .decode(&mut token_batch)
             .map_err(|error| classify_inference_error(&format!("Decode loop failed: {error}")))?;
 
@@ -955,7 +969,9 @@ where
         }
     }
 
-    Ok(finalize_model_output(&generated))
+    let final_output = finalize_model_output(&generated);
+    runtime.context.clear_kv_cache();
+    Ok(final_output)
 }
 
 fn find_stop_index(text: &str) -> Option<usize> {
