@@ -65,16 +65,16 @@ while (-not $memoryFound) {
 
 # 4. Choose and Download the Brain (Interactive Flow)
 Write-Host "`n[3/4] Select the Main Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
-Write-Host "  1. Small  (Fast & Uncensored, ~2.4GB) - Uncensored Llama 3.2 3B"
-Write-Host "  2. Medium (Smart & Uncensored, ~4.5GB) - Dolphin Llama 3.1 8B"
+Write-Host "  1. Small  (Fast & Uncensored, ~2.4GB) - Phi-3.5 Mini Uncensored"
+Write-Host "  2. Medium (Smart & Uncensored, ~2.3GB) - Llama 3.2 3B Uncensored"
 Write-Host "  3. Skip   (I already have a main .gguf model)"
 
 $choice = Read-Host "Enter your choice (1-3)"
 $hfUrl = ""
 
 switch ($choice) {
-    '1' { $hfUrl = "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-uncensored-GGUF/tree/main" }
-    '2' { $hfUrl = "https://huggingface.co/bartowski/Dolphin3.0-Llama3.1-8B-GGUF/tree/main" }
+    '1' { $hfUrl = "https://huggingface.co/bartowski/Phi-3.5-mini-instruct_Uncensored-GGUF/tree/main" }
+    '2' { $hfUrl = "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-uncensored-GGUF/tree/main" }
     '3' { Write-Host "Skipping model download..." -ForegroundColor DarkGray }
     default { Write-Host "Invalid choice, skipping..." -ForegroundColor DarkGray }
 }
