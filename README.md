@@ -150,14 +150,6 @@ flutter build windows
 - **Recommended packaging tool:** Inno Setup
 - **Packaging instruction:** Point the Inno Setup wizard to `build\windows\x64\runner\Release\` and include the full contents of that directory in the installer.
 
-- **Alternative (One Command Install):** For direct user onboarding, you can ship the PowerShell bootstrap script in `quickinstall/install.ps1` and run:
-
-```powershell
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/Blue8x/Anima/main/quickinstall/install.ps1 -UseBasicParsing | iex"
-```
-
-This command downloads and executes the installer script, which installs the app files and then fetches the GGUF model separately.
-
 ### 2) macOS (.dmg)
 
 - **Base build command:**
