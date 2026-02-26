@@ -92,33 +92,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _loadInitialLanguage() async {
-    String languageToUse = 'EN';
-
     try {
       if (!mounted) return;
       if (_languageSelectedByUser) return;
-      final animaService = context.read<AnimaService>();
       final translationService = context.read<TranslationService>();
 
-      final persistedLanguage = await _readPersistedLanguage();
-      if (persistedLanguage != null && persistedLanguage.trim().isNotEmpty) {
-        languageToUse = TranslationService.normalizeLanguageCode(persistedLanguage);
-      } else {
-        try {
-          final remoteLanguage = await animaService.getAppLanguage();
-          if (remoteLanguage.trim().isNotEmpty) {
-            languageToUse = TranslationService.normalizeLanguageCode(remoteLanguage);
-          }
-        } catch (e) {
-          debugPrint('[onboarding] Could not read backend language, fallback EN: $e');
-        }
-      }
-
       setState(() {
-        _selectedLanguage = languageToUse;
-        _wheelAngle = _wheelAngleForLanguage(languageToUse);
+        _selectedLanguage = 'EN';
+        _wheelAngle = _wheelAngleForLanguage('EN');
       });
-      translationService.setLanguageLocal(languageToUse);
+      translationService.setLanguageLocal('EN');
     } catch (e) {
       debugPrint('[onboarding] Failed to load initial language, fallback EN: $e');
       if (!mounted) return;
