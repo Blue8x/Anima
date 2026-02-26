@@ -13,7 +13,7 @@ Set-Location $installDir
 $appUrl = "https://github.com/Blue8x/Anima/releases/latest/download/anima-windows.zip"
 $zipPath = "$installDir\anima.zip"
 
-Write-Host "`n[1/3] Downloading the application core..." -ForegroundColor Yellow
+Write-Host "`n[1/4] Downloading the application core..." -ForegroundColor Yellow
 try {
     Invoke-WebRequest -Uri $appUrl -OutFile $zipPath -ErrorAction Stop
     Expand-Archive -Path $zipPath -DestinationPath $installDir -Force -ErrorAction Stop
@@ -26,8 +26,20 @@ try {
     # exit 
 }
 
+# 2.5 Download the Memory Core (Embedding Model) silently
+Write-Host "`n[2/4] Downloading Memory Core (This will take a few seconds)..." -ForegroundColor Yellow
+$embedUrl = "https://huggingface.co/bofenghuang/all-MiniLM-L6-v2-gguf/resolve/main/all-MiniLM-L6-v2-f16.gguf"
+$embedPath = "$installDir\all-MiniLM-L6-v2.gguf"
+
+try {
+    Invoke-WebRequest -Uri $embedUrl -OutFile $embedPath -ErrorAction Stop
+    Write-Host "Memory Core downloaded successfully!" -ForegroundColor Green
+} catch {
+    Write-Host "[WARNING] Could not download the Memory Core. Memory functions might be limited." -ForegroundColor Red
+}
+
 # 3. Choose and Download the Brain (Interactive Flow)
-Write-Host "`n[2/3] Select the Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
+Write-Host "`n[3/4] Select the Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
 Write-Host "  1. Small  (Fast, ~4GB RAM required) - Phi-3 Mini"
 Write-Host "  2. Medium (Recommended, ~8GB RAM required) - Llama 3 / Dolphin 8B"
 Write-Host "  3. Large  (High Quality, 16GB+ RAM required) - Mistral Nemo 12B"
@@ -60,13 +72,13 @@ if ($hfUrl -ne "") {
     while (-not $modelFound) {
         $confirm = Read-Host "`nHave you moved the .gguf file to the folder? (Y/N)"
         if ($confirm -match "^[Yy]$") {
-            # Buscamos si el usuario ha metido algun archivo .gguf
-            $ggufFiles = Get-ChildItem -Path $installDir -Filter *.gguf
+            # Buscamos si el usuario ha metido algun archivo .gguf (EXCLUYENDO el de memoria)
+            $ggufFiles = Get-ChildItem -Path $installDir -Filter *.gguf | Where-Object { $_.Name -ne "all-MiniLM-L6-v2.gguf" }
             
             if ($ggufFiles.Count -gt 0) {
                 Write-Host "Model found! Configuring it for Anima..." -ForegroundColor Green
                 
-                # Opcional: Renombramos el primer gguf que encuentre a 'anima_v1.gguf' para que el Rust no falle
+                # Renombramos el primer gguf (el grande) que encuentre a 'anima_v1.gguf'
                 $targetName = "anima_v1.gguf"
                 if ($ggufFiles[0].Name -ne $targetName) {
                     Rename-Item -Path $ggufFiles[0].FullName -NewName $targetName -Force
@@ -75,7 +87,7 @@ if ($hfUrl -ne "") {
                 
                 $modelFound = $true
             } else {
-                Write-Host "[ERROR] No .gguf file found in $installDir." -ForegroundColor Red
+                Write-Host "[ERROR] No main .gguf file found in $installDir." -ForegroundColor Red
                 Write-Host "Please download it and move it to the folder before continuing." -ForegroundColor Yellow
             }
         }
@@ -83,21 +95,21 @@ if ($hfUrl -ne "") {
 }
 
 # 4. Create Desktop Shortcut
-Write-Host "`n[3/3] Setting up shortcuts..." -ForegroundColor Yellow
+Write-Host "`n[4/4] Setting up shortcuts..." -ForegroundColor Yellow
 try {
     $WshShell = New-Object -comObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut("$Home\Desktop\Anima.lnk")
     $Shortcut.TargetPath = "$installDir\anima.exe"
     $Shortcut.WorkingDirectory = "$installDir"
     
-    # Solo le pone el icono si existe el exe (util para cuando estes haciendo pruebas locales)
+    # Solo le pone el icono si existe el exe
     if (Test-Path "$installDir\anima.exe") {
         $Shortcut.IconLocation = "$installDir\anima.exe"
     }
     $Shortcut.Save()
     Write-Host "Desktop shortcut created!" -ForegroundColor Green
 } catch {
-    Write-Host "Could not create shortcut. (Exe not found, which is normal during this test)." -ForegroundColor DarkGray
+    Write-Host "Could not create shortcut." -ForegroundColor DarkGray
 }
 
 Write-Host "`nInstallation completed successfully!" -ForegroundColor Green
