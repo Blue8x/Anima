@@ -30,7 +30,7 @@ Everything runs locally using Flutter (UI) + Rust (AI/data core).
 ### Backend (`frontend/rust/src`)
 
 - `api/simple.rs`: public API exposed through FRB.
-- `ai.rs`: unified AAA system prompting, streaming, embeddings, sleep cycle.
+- `ai.rs`: unified AAA system prompting, streaming, embeddings, sleep cycle, stateless chunked prefill decode.
 - `db.rs`: SQLite schema + CRUD + semantic retrieval.
 
 ## 4) Operational Data Model
@@ -50,7 +50,7 @@ The current database uses 4 main tables:
 3. Embedding is generated.
 4. Similar memories are retrieved from `memories` using cosine similarity.
 5. A unified System Prompt is assembled with identity/purpose, relational dynamics, chronological anchor, guardrails, language override, user directives, and consolidated profile.
-6. LLM responds (sync or stream).
+6. Rust runs stateless inference: clears KV cache, validates context length, decodes prompt in safe chunks (`n_batch=512`), then samples output.
 7. Response and related memory are persisted.
 
 ### B. Sleep Cycle
@@ -74,6 +74,13 @@ The base system prompt is a single template in `ai.rs` and injects:
 - `now`
 - `language`
 - `extra` (user directives)
+
+### E. Runtime Safety Constraints
+
+- Model load uses `mmap=false` and CPU-only baseline behavior for stability on heterogeneous Windows hardware.
+- Chat context size is bounded (`n_ctx=2048`), with explicit user-facing error when exceeded.
+- Prompt prefill never decodes as one giant batch; decode is chunked to avoid access violations on long histories.
+- KV cache is purged between turns (stateless mode), since Flutter already sends the required short-term history payload.
 
 ## 6) Runtime Architecture
 

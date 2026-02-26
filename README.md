@@ -119,6 +119,12 @@ Anima combines a Flutter app for premium dark UI with a Rust core for local cogn
 - Full factory reset (double confirmation).
 - Brain export and database export capabilities.
 - Sleep cycle "Process and Shutdown" flow shows blocking progress dialog and closes cleanly after processing.
+- Windows compatibility hardening for inference stability:
+	- `target-cpu=x86-64` baseline build (non-native CPU instructions).
+	- OpenMP default features disabled in llama dependencies.
+	- `mmap=false` model load path via raw llama.cpp params (forces RAM load).
+	- Stateless inference mode: KV cache is cleared each turn.
+	- Prompt prefill is chunked by safe batches (`n_batch=512`) instead of decoding all tokens at once.
 
 ---
 
@@ -149,6 +155,7 @@ flutter build windows
 
 - **Recommended packaging tool:** Inno Setup
 - **Packaging instruction:** Point the Inno Setup wizard to `build\windows\x64\runner\Release\` and include the full contents of that directory in the installer.
+- **Important runtime note:** Include all `.dll` files found inside `Release\` (e.g. `rust_lib_anima.dll`, `flutter_windows.dll`, plugin DLLs, `sqlite3.dll`).
 
 ### 2) macOS (.dmg)
 

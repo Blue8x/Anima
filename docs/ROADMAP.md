@@ -49,6 +49,10 @@
 
 ## Phase 8 — Hardening & Release (Next)
 
+- [x] Windows CPU-baseline compatibility (`x86-64`, no native-only instruction assumptions).
+- [x] Stateless inference path with strict KV reset between turns.
+- [x] Chunked prompt prefill decode (`n_batch=512`) for long-history crash mitigation.
+- [x] Onboarding language fallback that never blocks navigation to chat.
 - [ ] Full E2E QA for onboarding/i18n/streaming/reset.
 - [ ] Performance profiling on target hardware.
 - [ ] Visual regression checklist per screen.

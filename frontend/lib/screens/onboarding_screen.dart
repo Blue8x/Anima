@@ -1,7 +1,10 @@
 import 'dart:math' as math;
+import 'dart:convert';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../services/anima_service.dart';
@@ -89,17 +92,83 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _loadInitialLanguage() async {
+    String languageToUse = 'EN';
+
     try {
       if (!mounted) return;
       if (_languageSelectedByUser) return;
+      final animaService = context.read<AnimaService>();
+      final translationService = context.read<TranslationService>();
+
+      final persistedLanguage = await _readPersistedLanguage();
+      if (persistedLanguage != null && persistedLanguage.trim().isNotEmpty) {
+        languageToUse = TranslationService.normalizeLanguageCode(persistedLanguage);
+      } else {
+        try {
+          final remoteLanguage = await animaService.getAppLanguage();
+          if (remoteLanguage.trim().isNotEmpty) {
+            languageToUse = TranslationService.normalizeLanguageCode(remoteLanguage);
+          }
+        } catch (e) {
+          debugPrint('[onboarding] Could not read backend language, fallback EN: $e');
+        }
+      }
+
+      setState(() {
+        _selectedLanguage = languageToUse;
+        _wheelAngle = _wheelAngleForLanguage(languageToUse);
+      });
+      translationService.setLanguageLocal(languageToUse);
+    } catch (e) {
+      debugPrint('[onboarding] Failed to load initial language, fallback EN: $e');
+      if (!mounted) return;
+      final translationService = context.read<TranslationService>();
+      translationService.setLanguageLocal('EN');
       setState(() {
         _selectedLanguage = 'EN';
         _wheelAngle = _wheelAngleForLanguage('EN');
       });
-      context.read<TranslationService>().setLanguageLocal('EN');
-    } catch (_) {
-      if (!mounted) return;
-      context.read<TranslationService>().setLanguageLocal('EN');
+    }
+  }
+
+  Future<File> _onboardingStateFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File('${dir.path}${Platform.pathSeparator}onboarding_state.json');
+  }
+
+  Future<String?> _readPersistedLanguage() async {
+    try {
+      final file = await _onboardingStateFile();
+      if (!await file.exists()) return null;
+
+      final raw = await file.readAsString();
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final language = decoded['selected_language'];
+        if (language is String && language.trim().isNotEmpty) {
+          return language;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[onboarding] Failed to read persisted onboarding state: $e');
+      return null;
+    }
+  }
+
+  Future<void> _persistOnboardingState({
+    required bool completed,
+    required String selectedLanguage,
+  }) async {
+    try {
+      final file = await _onboardingStateFile();
+      final payload = jsonEncode({
+        'onboarding_completed': completed,
+        'selected_language': TranslationService.normalizeLanguageCode(selectedLanguage),
+      });
+      await file.writeAsString(payload, flush: true);
+    } catch (e) {
+      debugPrint('[onboarding] Failed to persist onboarding state: $e');
     }
   }
 
@@ -154,18 +223,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     try {
       final animaService = context.read<AnimaService>();
-      final languageSaved = await context
-          .read<TranslationService>()
-          .changeLanguage(_selectedLanguage);
+      final translationService = context.read<TranslationService>();
+
+      var languageSaved = false;
+      try {
+        languageSaved = await translationService.changeLanguage(_selectedLanguage);
+      } catch (e) {
+        debugPrint('[onboarding] Failed to save selected language: $e');
+      }
+
       if (!languageSaved) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr(context, 'languageSaveFailed'))),
-        );
-        setState(() {
-          _isSubmitting = false;
-        });
-        return;
+        const fallbackLanguage = 'EN';
+        debugPrint('[onboarding] Language save failed, forcing fallback: $fallbackLanguage');
+        translationService.setLanguageLocal(fallbackLanguage);
+        try {
+          await animaService.setAppLanguage(fallbackLanguage);
+        } catch (e) {
+          debugPrint('[onboarding] Fallback language save also failed: $e');
+        }
       }
 
       if (!mounted) return;
@@ -185,6 +260,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (seed.isNotEmpty) {
         await animaService.addProfileTrait('Identidad', seed);
       }
+
+      await _persistOnboardingState(
+        completed: true,
+        selectedLanguage: translationService.language,
+      );
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(

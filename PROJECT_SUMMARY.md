@@ -29,6 +29,11 @@ Anima is designed to:
 - Semantic retrieval through cosine similarity.
 - Sleep cycle to consolidate raw memories into traits.
 - Unified AAA System Prompt in Rust with dynamic placeholders (`{user_name}`, `{now}`, `{language}`, `{extra}`) and strict language steering.
+- Production hardening for Windows stability:
+  - CPU baseline compile target (`x86-64`) to avoid host-only instructions.
+  - llama runtime loaded with `mmap=false` through low-level params.
+  - Stateless KV strategy: cache is purged on every request.
+  - Prompt prefill decode in safe chunks (`n_batch=512`) with explicit context-length guard.
 - Local embedded translation dictionary for 7 primary languages (EN, ES, DE, RU, JP, ZH, AR).
 - DB export and transactional factory reset.
 
@@ -44,6 +49,7 @@ Anima is designed to:
 - Premium drawer/menus with microinteractions.
 - Settings, Memory, and Brain screens with coherent dark style.
 - Global i18n with instant app-wide locale rebuild and local fallback.
+- Onboarding transition hardening: language save/load failures no longer block navigation to chat; fallback language is applied automatically.
 
 ## Delivered Key Capabilities
 

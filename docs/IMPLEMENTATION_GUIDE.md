@@ -81,6 +81,15 @@ frontend/
 3. Keep language enforcement explicit (responses/greetings/thoughts in configured app language).
 4. Run `cargo check` in `frontend/rust`.
 
+### Modify Inference Runtime (Critical)
+
+When touching `ai.rs`, keep these constraints intact:
+
+1. `n_ctx` bounded (currently 2048) with explicit overflow error.
+2. Prompt prefill decode in chunks (`SAFE_N_BATCH`, currently 512), never all tokens at once.
+3. Stateless turn isolation (`clear_kv_cache`) before and after generation.
+4. No panic paths in inference flow (`unwrap`/`expect` avoided in runtime-critical generation code).
+
 ### Add a New Screen
 
 1. Create it in `frontend/lib/screens/`.
@@ -108,7 +117,9 @@ cargo check
 
 Minimum manual flows:
 - Onboarding (7-language selector).
+- Onboarding "Start journey" fallback path when language persistence fails.
 - Chat streaming + final persistence.
+- Long-prompt second-turn chat on a clean install (Windows Release build).
 - Sleep cycle.
 - Factory reset.
 - Instant language switch from onboarding and settings.

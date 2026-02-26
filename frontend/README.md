@@ -46,6 +46,8 @@ flutter build windows --release
 
 - If you update Rust APIs, regenerate bindings before running the app.
 - Core chat behavior is controlled by a unified System Prompt template in `rust/src/ai.rs` with runtime placeholders: `{user_name}`, `{now}`, `{language}`, `{extra}`.
+- Runtime hardening (Windows): prompt prefill is decoded in safe chunks, KV cache is reset per turn, and context limits are validated before inference.
+- Release packaging must include every DLL generated inside `build/windows/x64/runner/Release/`.
 - Windows one-time install command:
 
 ```powershell

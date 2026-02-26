@@ -772,6 +772,9 @@ where
 
     let context_limit = usize::try_from(DEFAULT_N_CTX)
         .map_err(|_| "Invalid context configuration".to_string())?;
+    if prompt_tokens.len() > context_limit {
+        return Err("El contexto supera el límite de memoria".to_string());
+    }
     if prompt_tokens.len() >= context_limit.saturating_sub(8) {
         return Err(
             "[Error: Límite de memoria alcanzado] El prompt supera la ventana de contexto.".to_string(),
@@ -790,12 +793,34 @@ where
         );
     }
 
-    let mut prompt_batch =
-        LlamaBatch::get_one(&prompt_tokens).map_err(|error| format!("Batch init failed: {error}"))?;
-    runtime
-        .context
-        .decode(&mut prompt_batch)
-        .map_err(|error| classify_inference_error(&format!("Initial decode failed: {error}")))?;
+    let mut n_past = 0_i32;
+    for chunk in prompt_tokens.chunks(SAFE_N_BATCH as usize) {
+        let mut prompt_batch = LlamaBatch::new(chunk.len(), 1);
+
+        for (index, token) in chunk.iter().enumerate() {
+            let index_i32 = i32::try_from(index)
+                .map_err(|_| "Prompt chunk index overflow".to_string())?;
+            let pos = n_past
+                .checked_add(index_i32)
+                .ok_or_else(|| "Prompt position overflow".to_string())?;
+            let is_last_in_chunk = index + 1 == chunk.len();
+
+            prompt_batch
+                .add(*token, pos, &[0], is_last_in_chunk)
+                .map_err(|error| format!("Prompt chunk add failed: {error}"))?;
+        }
+
+        runtime
+            .context
+            .decode(&mut prompt_batch)
+            .map_err(|error| classify_inference_error(&format!("Initial decode failed: {error}")))?;
+
+        let chunk_len_i32 = i32::try_from(chunk.len())
+            .map_err(|_| "Prompt chunk length overflow".to_string())?;
+        n_past = n_past
+            .checked_add(chunk_len_i32)
+            .ok_or_else(|| "Prompt accumulated length overflow".to_string())?;
+    }
 
     let mut sampler = if sampling_temperature <= 0.0 {
         LlamaSampler::greedy()
@@ -840,8 +865,7 @@ where
     let mut generated = String::new();
     let mut pending_utf8 = Vec::<u8>::new();
     let mut emitted_len = 0usize;
-    let mut position = i32::try_from(prompt_tokens.len())
-        .map_err(|_| "Prompt is too long for current context".to_string())?;
+    let mut position = n_past;
 
     for _ in 0..effective_max_tokens {
         let token = sampler.sample(&runtime.context, -1);
