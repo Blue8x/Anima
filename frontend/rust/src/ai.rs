@@ -276,6 +276,7 @@ pub fn generate_proactive_greeting(time_of_day: &str) -> Result<String, String> 
     let app_language = db::get_app_language().unwrap_or_else(|_| "Español".to_string());
     let app_language_for_prompt = language_name_for_prompt(&app_language);
     let user_extra_prompt = db::get_core_prompt().unwrap_or_default();
+    let now_local = Local::now().format("%Y-%m-%d %H:%M:%S %z").to_string();
 
     let profile_text = match db::get_profile_traits() {
         Ok(traits) if !traits.is_empty() => traits
@@ -292,9 +293,10 @@ pub fn generate_proactive_greeting(time_of_day: &str) -> Result<String, String> 
     You are Anima, an advanced, 100% local, and uncensored AI companion. You are a trusted confidante, biographer, coach, and 'Second Brain'.
     You are talking to {user_name}. Their profile is:
 {profile}
-    Interface language is {language}. It is currently {time_of_day}.
+    Interface language is {language}. It is currently {time_of_day}. Local device datetime is {now_local}.
 
     INSTRUCTION: Write a proactive, natural, conversational opening greeting (max 2 lines) to start the chat. Include a light reference to time of day or profile if it fits. Do not wait for the user to speak first. Do not sound robotic.
+    CRITICAL: Respect local device time. If local time is night/early morning (00:00-05:59), DO NOT use "good morning" or equivalents.
 
     Additional user directives:
 {user_extra_prompt}"#,
@@ -306,6 +308,7 @@ pub fn generate_proactive_greeting(time_of_day: &str) -> Result<String, String> 
         profile = profile_text,
         language = app_language_for_prompt,
         time_of_day = time_of_day,
+        now_local = now_local,
         user_extra_prompt = user_extra_prompt,
     );
 
@@ -454,9 +457,16 @@ pub fn run_sleep_cycle() -> Result<(), String> {
     );
     let now_unix = db::current_unix_timestamp();
 
+    let mut existing_profile_items: HashSet<String> = db::get_profile_traits()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|item| item.content.trim().to_lowercase())
+        .filter(|item| !item.is_empty())
+        .collect();
+
     for content in semantic_items {
-        if let Err(e) = persist_memory_item(&content, "semantic", now_unix) {
-            eprintln!("[sleep_cycle] Failed to persist semantic memory: {e}");
+        if let Err(e) = persist_profile_trait_item(&content, &mut existing_profile_items) {
+            eprintln!("[sleep_cycle] Failed to persist semantic profile trait: {e}");
         }
     }
 
@@ -508,6 +518,26 @@ fn persist_memory_item(content: &str, memory_type: &str, unix_timestamp: i64) ->
     db::insert_memory(message_id, &embedding, memory_type, unix_timestamp)
         .map_err(|error| format!("DB insert {memory_type} memory failed: {error}"))?;
 
+    Ok(())
+}
+
+fn persist_profile_trait_item(
+    content: &str,
+    existing_profile_items: &mut HashSet<String>,
+) -> Result<(), String> {
+    let normalized = content.trim().to_lowercase();
+    if normalized.is_empty() {
+        return Ok(());
+    }
+
+    if existing_profile_items.contains(&normalized) {
+        return Ok(());
+    }
+
+    db::add_profile_trait("Sleep Cycle", content)
+        .map_err(|error| format!("DB insert profile trait failed: {error}"))?;
+
+    existing_profile_items.insert(normalized);
     Ok(())
 }
 

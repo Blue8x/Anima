@@ -123,7 +123,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _cacheHomeState();
 
     final hour = DateTime.now().hour;
-    final String timeOfDay = hour < 12 ? 'morning' : hour < 20 ? 'afternoon' : 'evening';
+    final String timeOfDay = hour < 6
+      ? 'night'
+      : hour < 12
+        ? 'morning'
+        : hour < 20
+          ? 'afternoon'
+          : 'evening';
 
     if (!mounted) return;
     setState(() {

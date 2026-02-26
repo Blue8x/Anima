@@ -19,10 +19,16 @@ class BrainScreen extends StatefulWidget {
 class _BrainScreenState extends State<BrainScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<MemoryItem> displayedMemories = [];
+  List<ProfileTrait> _profileTraits = [];
   bool _isLoading = true;
+  bool _isLoadingProfile = true;
   bool _isProcessingSleep = false;
+  double _sleepProgress = 0.0;
+  String _sleepStatusText = '';
   bool _isResetHovered = false;
   Timer? _searchDebounce;
+  Timer? _sleepProgressTimer;
+  final Map<String, bool> _expandedProfileSections = {};
 
   Widget _buildAnimatedAppBarIconButton({
     required IconData icon,
@@ -62,11 +68,13 @@ class _BrainScreenState extends State<BrainScreen> {
   void initState() {
     super.initState();
     _runMemorySearch('');
+    _loadProfileTraits();
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _sleepProgressTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -96,6 +104,73 @@ class _BrainScreenState extends State<BrainScreen> {
         });
       }
     }
+  }
+
+  Future<void> _loadProfileTraits() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingProfile = true;
+    });
+
+    try {
+      final animaService = context.read<AnimaService>();
+      final traits = await animaService.getProfileTraits();
+      if (!mounted) return;
+      setState(() {
+        _profileTraits = traits;
+        final categories = traits.map((trait) => trait.category).toSet().toList();
+        for (final category in categories) {
+          _expandedProfileSections.putIfAbsent(category, () => false);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${tr(context, 'errorLoadingProfileSections')}: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingProfile = false;
+        });
+      }
+    }
+  }
+
+  Map<String, List<ProfileTrait>> _groupTraitsByCategory() {
+    final grouped = <String, List<ProfileTrait>>{};
+    for (final trait in _profileTraits) {
+      grouped.putIfAbsent(trait.category, () => []);
+      grouped[trait.category]!.add(trait);
+    }
+    return grouped;
+  }
+
+  int _categoryPriority(String category) {
+    final normalized = category.trim().toLowerCase();
+    const priority = {
+      'identidad': 0,
+      'identity': 0,
+      'personalidad': 1,
+      'personality': 1,
+      'hábitos': 2,
+      'habitos': 2,
+      'habits': 2,
+      'objetivos': 3,
+      'goals': 3,
+      'relaciones': 4,
+      'relationships': 4,
+      'preferencias': 5,
+      'preferences': 5,
+      'salud': 6,
+      'health': 6,
+      'trabajo': 7,
+      'work': 7,
+      'aprendizaje': 8,
+      'learning': 8,
+      'sleep cycle': 9,
+    };
+    return priority[normalized] ?? 100;
   }
 
   void _onSearchChanged(String value) {
@@ -157,143 +232,67 @@ class _BrainScreenState extends State<BrainScreen> {
     debugPrint('[sleep_ui_brain] start');
 
     final translationService = context.read<TranslationService>();
+    final animaService = context.read<AnimaService>();
 
     setState(() {
       _isProcessingSleep = true;
+      _sleepProgress = 0.0;
+      _sleepStatusText = translationService.tr('sleepLoadingToday');
     });
 
-    double progress = 0.0;
-    String statusText = translationService.tr('sleepLoadingToday');
-    StateSetter? dialogSetState;
-    Timer? fakeProgressTimer;
+    _sleepProgressTimer?.cancel();
+    _sleepProgressTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (!mounted || !_isProcessingSleep) return;
 
-    void refreshDialog() {
-      if (dialogSetState == null) return;
-      dialogSetState!(() {});
-    }
+      final nextProgress = (_sleepProgress + 0.08).clamp(0.0, 0.9);
+      String nextStatus;
 
-    showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      barrierLabel: tr(context, 'sleepProgressLabel'),
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 260),
-      pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            dialogSetState = setStateDialog;
-            return Center(
-              child: Dialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withAlpha(35),
-                        ),
-                        child: Icon(
-                          Icons.nightlight_round,
-                          size: 34,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        statusText,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
-
-        return FadeTransition(
-          opacity: curved,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
-            child: child,
-          ),
-        );
-      },
-    );
-
-    fakeProgressTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      progress = (progress + 0.08).clamp(0.0, 0.9);
-
-      if (progress < 0.2) {
-        statusText = translationService.tr('sleepLoadingToday');
-      } else if (progress < 0.4) {
-        statusText = translationService.tr('sleepAnalyzing');
-      } else if (progress < 0.7) {
-        statusText = translationService.tr('sleepExtracting');
+      if (nextProgress < 0.2) {
+        nextStatus = translationService.tr('sleepLoadingToday');
+      } else if (nextProgress < 0.4) {
+        nextStatus = translationService.tr('sleepAnalyzing');
+      } else if (nextProgress < 0.7) {
+        nextStatus = translationService.tr('sleepExtracting');
       } else {
-        statusText = translationService.tr('sleepConsolidating');
+        nextStatus = translationService.tr('sleepConsolidating');
       }
 
-      refreshDialog();
+      setState(() {
+        _sleepProgress = nextProgress;
+        _sleepStatusText = nextStatus;
+      });
     });
 
     try {
-      final animaService = context.read<AnimaService>();
       await Future.delayed(const Duration(milliseconds: 120));
       debugPrint('[sleep_ui_brain] calling triggerSleepCycle');
       await animaService.triggerSleepCycle();
       debugPrint('[sleep_ui_brain] triggerSleepCycle completed');
 
-      fakeProgressTimer.cancel();
-      progress = 1.0;
-      statusText = translationService.tr('sleepCompleted');
-      refreshDialog();
+      _sleepProgressTimer?.cancel();
+      if (!mounted) return;
+      setState(() {
+        _sleepProgress = 1.0;
+        _sleepStatusText = translationService.tr('sleepCompleted');
+      });
 
       await Future.delayed(const Duration(seconds: 1));
       debugPrint('[sleep_ui_brain] exiting app (success)');
       exit(0);
     } catch (e) {
       debugPrint('[sleep_ui_brain] triggerSleepCycle failed error=$e');
-      fakeProgressTimer.cancel();
-      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      _sleepProgressTimer?.cancel();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${tr(context, 'errorSleepCycle')}: $e')),
         );
       }
     } finally {
-      fakeProgressTimer.cancel();
+      _sleepProgressTimer?.cancel();
       if (mounted) {
         setState(() {
           _isProcessingSleep = false;
+          _sleepProgress = 0.0;
         });
       }
     }
@@ -371,28 +370,183 @@ class _BrainScreenState extends State<BrainScreen> {
         ),
         child: Stack(
           children: [
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : displayedMemories.isEmpty
-                  ? Center(child: Text(tr(context, 'noMemoriesForSearch')))
-                    : ListView(
-                        padding: const EdgeInsets.all(12),
-                        children: displayedMemories.map((memory) {
-                          return Container(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withAlpha(9),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.white.withAlpha(16)),
-                            ),
-                            child: ListTile(
-                              leading: const Icon(Icons.auto_awesome),
-                              title: Text(memory.content),
-                              subtitle: Text(memory.createdAt),
-                            ),
-                          );
-                        }).toList(),
+            ListView(
+              padding: const EdgeInsets.all(12),
+              children: [
+                Text(
+                  tr(context, 'digitalProfileSections'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (_isLoadingProfile)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else ...(() {
+                  final grouped = _groupTraitsByCategory();
+                  final sortedEntries = grouped.entries.toList()
+                    ..sort((a, b) {
+                      final priorityCompare =
+                          _categoryPriority(a.key).compareTo(_categoryPriority(b.key));
+                      if (priorityCompare != 0) return priorityCompare;
+                      return a.key.toLowerCase().compareTo(b.key.toLowerCase());
+                    });
+                  if (grouped.isEmpty) {
+                    return [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(9),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withAlpha(16)),
+                        ),
+                        child: Text(
+                          tr(context, 'noProfileSectionsYet'),
+                          style: TextStyle(color: Colors.white.withAlpha(200)),
+                        ),
                       ),
+                    ];
+                  }
+
+                  return sortedEntries.map((entry) {
+                    final category = entry.key;
+                    final traits = entry.value;
+
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(9),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withAlpha(16)),
+                      ),
+                      child: ExpansionTile(
+                        key: PageStorageKey<String>('profile-$category'),
+                        tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+                        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                        initiallyExpanded: _expandedProfileSections[category] ?? false,
+                        onExpansionChanged: (expanded) {
+                          setState(() {
+                            _expandedProfileSections[category] = expanded;
+                          });
+                        },
+                        leading: const Icon(Icons.psychology_alt_outlined),
+                        title: Text(
+                          '$category (${traits.length})',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        children: traits
+                            .map(
+                              (trait) => Container(
+                                margin: const EdgeInsets.only(top: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withAlpha(30),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.white.withAlpha(10)),
+                                ),
+                                child: Text(trait.content),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    );
+                  }).toList();
+                })(),
+                const SizedBox(height: 18),
+                Text(
+                  tr(context, 'pastMemorySearchSection'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (displayedMemories.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(tr(context, 'noMemoriesForSearch')),
+                  )
+                else
+                  ...displayedMemories.map((memory) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(9),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withAlpha(16)),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.auto_awesome),
+                        title: Text(memory.content),
+                        subtitle: Text(memory.createdAt),
+                      ),
+                    );
+                  }),
+              ],
+            ),
+            if (_isProcessingSleep)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withAlpha(178),
+                  alignment: Alignment.center,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111827),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withAlpha(24)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withAlpha(35),
+                            ),
+                            child: Icon(
+                              Icons.nightlight_round,
+                              size: 34,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _sleepStatusText,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 16),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: _sleepProgress,
+                              minHeight: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
