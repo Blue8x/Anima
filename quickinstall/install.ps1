@@ -13,7 +13,7 @@ Set-Location $installDir
 $appUrl = "https://github.com/Blue8x/Anima/releases/latest/download/anima-windows.zip"
 $zipPath = "$installDir\anima.zip"
 
-Write-Host "`n[1/5] Downloading the application core..." -ForegroundColor Yellow
+Write-Host "`n[1/4] Downloading the application core..." -ForegroundColor Yellow
 try {
     Invoke-WebRequest -Uri $appUrl -OutFile $zipPath -ErrorAction Stop
     Expand-Archive -Path $zipPath -DestinationPath $installDir -Force -ErrorAction Stop
@@ -27,12 +27,12 @@ try {
 }
 
 # 3. Download the Memory Core (Interactive Flow)
-Write-Host "`n[2/5] Setting up the Memory Core (Required for long-term memory):" -ForegroundColor Cyan
+Write-Host "`n[2/4] Setting up the Memory Core (Required for long-term memory):" -ForegroundColor Cyan
 Write-Host "Opening your browser and the installation folder..." -ForegroundColor Green
-Write-Host "-> Please download the file 'all-MiniLM-L6-v2-f16.gguf' (or similar)."
+Write-Host "-> Please download ANY .gguf file from the list (e.g., 'all-MiniLM-L6-v2-Q4_K_M.gguf')."
 Write-Host "-> Move it into the Anima installation folder that just opened."
 
-$memoryUrl = "https://huggingface.co/bofenghuang/all-MiniLM-L6-v2-gguf/tree/main"
+$memoryUrl = "https://huggingface.co/second-state/All-MiniLM-L6-v2-Embedding-GGUF/tree/main"
 Start-Sleep -Seconds 2
 
 # Abrimos la URL de memoria en el navegador
@@ -64,7 +64,7 @@ while (-not $memoryFound) {
 }
 
 # 4. Choose and Download the Brain (Interactive Flow)
-Write-Host "`n[3/5] Select the Main Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
+Write-Host "`n[3/4] Select the Main Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
 Write-Host "  1. Small  (Fast, ~4GB RAM required) - Phi-3 Mini"
 Write-Host "  2. Medium (Recommended, ~8GB RAM required) - Llama 3 / Dolphin 8B"
 Write-Host "  3. Large  (High Quality, 16GB+ RAM required) - Mistral Nemo 12B"
@@ -116,7 +116,7 @@ if ($hfUrl -ne "") {
 }
 
 # 5. Create Desktop Shortcut
-Write-Host "`n[5/5] Setting up shortcuts..." -ForegroundColor Yellow
+Write-Host "`n[4/4] Setting up shortcuts..." -ForegroundColor Yellow
 try {
     $WshShell = New-Object -comObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut("$Home\Desktop\Anima.lnk")
