@@ -5,6 +5,7 @@ pub use crate::db::ChatMessage;
 pub use crate::db::MemoryItem;
 pub use crate::db::ProfileTrait;
 use crate::frb_generated::StreamSink;
+use std::any::Any;
 use std::panic::{self, AssertUnwindSafe};
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -61,9 +62,13 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
             eprintln!("{detail}");
             format_generation_error(&detail)
         }
-        Err(_) => {
-            "[Error: Límite de memoria alcanzado] El motor de inferencia se detuvo por seguridad."
-                .to_string()
+        Err(payload) => {
+            let detail = format!(
+                "Panic during LLM generation: {}",
+                panic_payload_to_string(payload)
+            );
+            eprintln!("{detail}");
+            format_generation_error(&detail)
         }
     };
 
@@ -111,11 +116,13 @@ pub fn send_message_stream(
             let detail = format!("Error al generar respuesta LLM: {error}");
             return Err(format_generation_error(&detail));
         }
-        Err(_) => {
-            return Err(
-                "[Error: Límite de memoria alcanzado] El motor de inferencia se detuvo por seguridad."
-                    .to_string(),
+        Err(payload) => {
+            let detail = format!(
+                "Panic during LLM stream generation: {}",
+                panic_payload_to_string(payload)
             );
+            eprintln!("{detail}");
+            return Err(format_generation_error(&detail));
         }
     };
 
@@ -181,7 +188,10 @@ pub fn generate_proactive_greeting(time_of_day: String) -> Result<String, String
         ),
         Ok(Ok(output)) => Ok(output),
         Ok(Err(error)) => Err(format!("Error al generar saludo LLM: {error}")),
-        Err(_) => Err("Error interno del motor: panic during greeting inference".to_string()),
+        Err(payload) => Err(format!(
+            "Error interno del motor: panic during greeting inference: {}",
+            panic_payload_to_string(payload)
+        )),
     }
 }
 
@@ -547,4 +557,14 @@ fn format_generation_error(detail: &str) -> String {
         return format!("[Error: Límite de memoria alcanzado] {detail}");
     }
     format!("[Error: Inferencia fallida] {detail}")
+}
+
+fn panic_payload_to_string(payload: Box<dyn Any + Send>) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        return (*message).to_string();
+    }
+    if let Some(message) = payload.downcast_ref::<String>() {
+        return message.clone();
+    }
+    "non-string panic payload".to_string()
 }

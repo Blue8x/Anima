@@ -32,14 +32,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const List<_LanguageOption> _languageOptions = [
     _LanguageOption(
-      backendValue: 'ES',
-      nativeLabel: 'ES',
-      flagImageUrl: 'https://flagcdn.com/w320/es.png',
-    ),
-    _LanguageOption(
       backendValue: 'EN',
       nativeLabel: 'EN',
       flagImageUrl: 'https://flagcdn.com/w320/us.png',
+    ),
+    _LanguageOption(
+      backendValue: 'ES',
+      nativeLabel: 'ES',
+      flagImageUrl: 'https://flagcdn.com/w320/es.png',
     ),
     _LanguageOption(
       backendValue: 'ZH',
@@ -429,6 +429,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         TextField(
           focusNode: _nameFocusNode,
           controller: _nameController,
+          autofocus: true,
           textInputAction: TextInputAction.done,
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) {
@@ -494,6 +495,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         const SizedBox(height: 18),
         TextField(
           controller: _seedController,
+          autofocus: true,
           minLines: 3,
           maxLines: 5,
           decoration: InputDecoration(
@@ -547,12 +549,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Color(0xFF09090B),
-              Color(0xFF0D0C18),
-              Color(0xFF151234),
-              Color(0xFF1E1B4B),
+              Colors.black,
+              Color(0xFF120A1F),
+              Color(0xFF1A0B2E),
+              Color(0xFF2D1152),
             ],
-            stops: [0.05, 0.38, 0.74, 1.0],
+            stops: [0.0, 0.36, 0.72, 1.0],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

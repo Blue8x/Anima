@@ -7,8 +7,10 @@ use llama_cpp_2::model::{AddBos, LlamaModel};
 use llama_cpp_2::sampling::LlamaSampler;
 use regex::Regex;
 use serde_json::{json, Value};
+use std::fs::OpenOptions;
 use std::ffi::CString;
 use std::collections::HashSet;
+use std::io::Write;
 use std::num::NonZeroU32;
 use std::path::Path;
 use std::ptr::NonNull;
@@ -57,7 +59,7 @@ pub fn init_ai_models(chat_model_path: &str, embedding_model_path: &str) -> Resu
     let backend_lock = get_or_init_backend()?;
     let backend = backend_lock
         .lock()
-        .map_err(|_| "Llama backend mutex is poisoned".to_string())?;
+        .map_err(|error| format!("Llama backend mutex is poisoned: {error}"))?;
 
     init_chat_model(&backend, chat_model_path)?;
     init_embedding_model(&backend, embedding_model_path)?;
@@ -67,7 +69,10 @@ pub fn init_ai_models(chat_model_path: &str, embedding_model_path: &str) -> Resu
 fn get_or_init_backend() -> Result<&'static Mutex<LlamaBackend>, String> {
     if LLAMA_BACKEND.get().is_none() {
         let backend =
-            LlamaBackend::init().map_err(|error| format!("Backend init failed: {error}"))?;
+            LlamaBackend::init().map_err(|error| {
+                log_debug_error("backend_init", &error);
+                format!("Backend init failed: {error}")
+            })?;
         let _ = LLAMA_BACKEND.set(Mutex::new(backend));
     }
 
@@ -107,7 +112,7 @@ fn init_chat_model(backend: &LlamaBackend, model_path: &str) -> Result<(), Strin
             model: leaked_model,
             context,
         }))
-        .map_err(|_| "AI runtime was already initialized".to_string())
+        .map_err(|_| "AI runtime was already initialized (OnceLock::set failed)".to_string())
 }
 
 fn init_embedding_model(_backend: &LlamaBackend, model_path: &str) -> Result<(), String> {
@@ -128,7 +133,9 @@ fn init_embedding_model(_backend: &LlamaBackend, model_path: &str) -> Result<(),
 
     EMBEDDING_RUNTIME
         .set(Mutex::new(EmbeddingRuntime { model }))
-        .map_err(|_| "Embedding runtime was already initialized".to_string())
+        .map_err(|_| {
+            "Embedding runtime was already initialized (OnceLock::set failed)".to_string()
+        })
 }
 
 fn load_model_force_no_mmap(model_file: &Path) -> Result<LlamaModel, String> {
@@ -137,7 +144,10 @@ fn load_model_force_no_mmap(model_file: &Path) -> Result<LlamaModel, String> {
         .ok_or_else(|| format!("Invalid model path: {}", model_file.display()))?;
 
     let c_path = CString::new(path)
-        .map_err(|error| format!("Invalid model path for FFI: {error}"))?;
+        .map_err(|error| {
+            log_debug_error("invalid_model_path_ffi", &error);
+            format!("Invalid model path for FFI: {error}")
+        })?;
 
     let mut raw_params = unsafe { llama_cpp_sys_2::llama_model_default_params() };
     raw_params.use_mmap = false;
@@ -161,7 +171,7 @@ pub fn generate_embedding(text: &str) -> Result<Vec<f32>, String> {
     let backend_lock = get_or_init_backend()?;
     let backend = backend_lock
         .lock()
-        .map_err(|_| "Llama backend mutex is poisoned".to_string())?;
+        .map_err(|error| format!("Llama backend mutex is poisoned: {error}"))?;
 
     let runtime_lock = EMBEDDING_RUNTIME
         .get()
@@ -169,7 +179,7 @@ pub fn generate_embedding(text: &str) -> Result<Vec<f32>, String> {
 
     let runtime = runtime_lock
         .lock()
-        .map_err(|_| "Embedding runtime mutex is poisoned".to_string())?;
+        .map_err(|error| format!("Embedding runtime mutex is poisoned: {error}"))?;
 
     let context_params = LlamaContextParams::default()
         .with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX))
@@ -183,12 +193,18 @@ pub fn generate_embedding(text: &str) -> Result<Vec<f32>, String> {
     let mut context = runtime
         .model
         .new_context(&backend, context_params)
-        .map_err(|error| format!("Embedding context creation failed: {error}"))?;
+        .map_err(|error| {
+            log_debug_error("embedding_context_creation", &error);
+            format!("Embedding context creation failed: {error}")
+        })?;
 
     let tokens = runtime
         .model
         .str_to_token(text, AddBos::Never)
-        .map_err(|error| format!("Embedding tokenization failed: {error}"))?;
+        .map_err(|error| {
+            log_debug_error("embedding_tokenization", &error);
+            format!("Embedding tokenization failed: {error}")
+        })?;
 
     if tokens.is_empty() {
         return Ok(Vec::new());
@@ -199,21 +215,30 @@ pub fn generate_embedding(text: &str) -> Result<Vec<f32>, String> {
 
     match context.encode(&mut batch) {
         Ok(()) => {}
-        Err(_) => {
+        Err(encode_error) => {
             context
                 .decode(&mut batch)
-                .map_err(|error| format!("Embedding inference failed: {error}"))?;
+                .map_err(|decode_error| {
+                    log_debug_error("embedding_decode_fallback", &decode_error);
+                    format!(
+                        "Embedding inference failed after encode error ({encode_error}); decode fallback error: {decode_error}"
+                    )
+                })?;
         }
     }
 
     match context.embeddings_seq_ith(0) {
         Ok(vector) => Ok(vector.to_vec()),
-        Err(_) => {
+        Err(seq_error) => {
             let last_token = i32::try_from(tokens.len().saturating_sub(1))
-                .map_err(|_| "Embedding token index overflow".to_string())?;
+                .map_err(|error| format!("Embedding token index overflow: {error}"))?;
             let fallback = context
                 .embeddings_ith(last_token)
-                .map_err(|error| format!("Embedding extraction failed: {error}"))?;
+                .map_err(|error| {
+                    format!(
+                        "Embedding extraction failed (seq_ith error: {seq_error}, fallback token: {last_token}): {error}"
+                    )
+                })?;
             Ok(fallback.to_vec())
         }
     }
@@ -753,11 +778,11 @@ where
 
     let runtime_lock = CHAT_RUNTIME
         .get()
-        .ok_or_else(|| "AI runtime is not initialized".to_string())?;
+        .ok_or_else(|| "AI runtime is not initialized in generate_with_system_prompt_stream".to_string())?;
 
     let mut runtime = runtime_lock
         .lock()
-        .map_err(|_| "AI runtime mutex is poisoned".to_string())?;
+        .map_err(|error| format!("AI runtime mutex is poisoned: {error}"))?;
 
     runtime.context.clear_kv_cache();
 
@@ -769,14 +794,17 @@ where
     let prompt_tokens = runtime
         .model
         .str_to_token(&prompt_text, AddBos::Never)
-        .map_err(|error| format!("Prompt tokenization failed: {error}"))?;
+        .map_err(|error| {
+            log_debug_error("prompt_tokenization", &error);
+            format!("Prompt tokenization failed: {error}")
+        })?;
 
     if prompt_tokens.is_empty() {
         return Ok(String::new());
     }
 
     let context_limit = usize::try_from(DEFAULT_N_CTX)
-        .map_err(|_| "Invalid context configuration".to_string())?;
+        .map_err(|error| format!("Invalid context configuration for DEFAULT_N_CTX={DEFAULT_N_CTX}: {error}"))?;
     if prompt_tokens.len() > context_limit {
         return Err("El contexto supera el límite de memoria".to_string());
     }
@@ -789,7 +817,7 @@ where
     let requested_max_tokens = max_tokens.min(MAX_GENERATION_TOKENS);
     let remaining_context = context_limit.saturating_sub(prompt_tokens.len() + 1);
     let effective_max_tokens = usize::try_from(requested_max_tokens)
-        .map_err(|_| "Invalid max_tokens value".to_string())?
+        .map_err(|error| format!("Invalid max_tokens value ({requested_max_tokens}): {error}"))?
         .min(remaining_context);
 
     if effective_max_tokens == 0 {
@@ -804,10 +832,15 @@ where
 
         for (index, token) in chunk.iter().enumerate() {
             let index_i32 = i32::try_from(index)
-                .map_err(|_| "Prompt chunk index overflow".to_string())?;
+                .map_err(|error| format!("Prompt chunk index overflow (index={index}): {error}"))?;
             let pos = n_past
                 .checked_add(index_i32)
-                .ok_or_else(|| "Prompt position overflow".to_string())?;
+                .ok_or_else(|| {
+                    format!(
+                        "Prompt position overflow (n_past={n_past}, chunk_index={index}, chunk_len={})",
+                        chunk.len()
+                    )
+                })?;
             let is_last_in_chunk = index + 1 == chunk.len();
 
             prompt_batch
@@ -818,13 +851,23 @@ where
         runtime
             .context
             .decode(&mut prompt_batch)
-            .map_err(|error| classify_inference_error(&format!("Initial decode failed: {error}")))?;
+            .map_err(|error| {
+                log_debug_error("initial_decode", &error);
+                classify_inference_error(&format!(
+                    "Initial decode failed (n_past={n_past}, chunk_len={}): {error}",
+                    chunk.len()
+                ))
+            })?;
 
         let chunk_len_i32 = i32::try_from(chunk.len())
-            .map_err(|_| "Prompt chunk length overflow".to_string())?;
+            .map_err(|error| format!("Prompt chunk length overflow (len={}): {error}", chunk.len()))?;
         n_past = n_past
             .checked_add(chunk_len_i32)
-            .ok_or_else(|| "Prompt accumulated length overflow".to_string())?;
+            .ok_or_else(|| {
+                format!(
+                    "Prompt accumulated length overflow (n_past={n_past}, chunk_len_i32={chunk_len_i32})"
+                )
+            })?;
     }
 
     let mut sampler = if sampling_temperature <= 0.0 {
@@ -886,7 +929,10 @@ where
         let piece_bytes = runtime
             .model
             .token_to_bytes(token, llama_cpp_2::model::Special::Tokenize)
-            .map_err(|error| format!("Token decode failed: {error}"))?;
+            .map_err(|error| {
+                log_debug_error("token_to_bytes", &error);
+                format!("Token decode failed: {error}")
+            })?;
 
         pending_utf8.extend_from_slice(&piece_bytes);
 
@@ -900,12 +946,17 @@ where
             let mut token_batch = LlamaBatch::new(1, 1);
             token_batch
                 .add(token, position, &[0], true)
-                .map_err(|error| format!("Token batch add failed: {error}"))?;
+                .map_err(|error| format!("Token batch add failed (token={token}, position={position}): {error}"))?;
 
             runtime
                 .context
                 .decode(&mut token_batch)
-                .map_err(|error| classify_inference_error(&format!("Decode loop failed: {error}")))?;
+                .map_err(|error| {
+                    log_debug_error("decode_loop_utf8_pending", &error);
+                    classify_inference_error(&format!(
+                        "Decode loop failed (token={token}, position={position}, branch=utf8_pending): {error}"
+                    ))
+                })?;
 
             position += 1;
             continue;
@@ -970,12 +1021,17 @@ where
         let mut token_batch = LlamaBatch::new(1, 1);
         token_batch
             .add(token, position, &[0], true)
-            .map_err(|error| format!("Token batch add failed: {error}"))?;
+            .map_err(|error| format!("Token batch add failed (token={token}, position={position}): {error}"))?;
 
         runtime
             .context
             .decode(&mut token_batch)
-            .map_err(|error| classify_inference_error(&format!("Decode loop failed: {error}")))?;
+            .map_err(|error| {
+                log_debug_error("decode_loop_normal", &error);
+                classify_inference_error(&format!(
+                    "Decode loop failed (token={token}, position={position}, branch=normal): {error}"
+                ))
+            })?;
 
         position += 1;
     }
@@ -1059,7 +1115,23 @@ fn floor_char_boundary(text: &str, index: usize) -> usize {
     index
 }
 
+fn append_hard_debug(tag: &str, message: &str) {
+    let now = Local::now().format("%Y-%m-%d %H:%M:%S%.3f %z");
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("anima_hard_debug.txt")
+    {
+        let _ = writeln!(file, "[{now}] [{tag}] {message}");
+    }
+}
+
+fn log_debug_error<E: std::fmt::Debug>(tag: &str, error: &E) {
+    append_hard_debug(tag, &format!("{:?}", error));
+}
+
 fn classify_inference_error(detail: &str) -> String {
+    append_hard_debug("classify_inference_error", detail);
     let lower = detail.to_lowercase();
     if lower.contains("context") || lower.contains("kv") || lower.contains("memory") {
         return format!("[Error: Límite de memoria alcanzado] {detail}");
