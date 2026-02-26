@@ -74,6 +74,13 @@ frontend/
 5. Integrate into screen/widget.
 6. Update `docs/API.md`.
 
+### Modify Prompt Behavior
+
+1. Edit unified system prompt template in `frontend/rust/src/ai.rs`.
+2. Keep placeholders synchronized: `{user_name}`, `{now}`, `{language}`, `{extra}`.
+3. Keep language enforcement explicit (responses/greetings/thoughts in configured app language).
+4. Run `cargo check` in `frontend/rust`.
+
 ### Add a New Screen
 
 1. Create it in `frontend/lib/screens/`.
@@ -105,6 +112,7 @@ Minimum manual flows:
 - Sleep cycle.
 - Factory reset.
 - Instant language switch from onboarding and settings.
+- Verify output language follows `app_language` after prompt edits.
 
 ## 8) Release Checklist (Summary)
 
@@ -115,5 +123,5 @@ Minimum manual flows:
 
 ---
 
-Last updated: February 25, 2026
+Last updated: February 26, 2026
 

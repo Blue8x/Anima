@@ -31,6 +31,7 @@
 - [x] Sleep cycle consolidation JSON.
 - [x] Profile consolidation in `profile_traits`.
 - [x] Persisted language (`app_language`) and LLM steering.
+- [x] Unified AAA System Prompt refactor (single non-fragmented template for chat behavior).
 - [x] Multilingual onboarding/settings with 7-language selector and instant global locale updates.
 
 ## Phase 6 — Streaming + Reliability (Completed)
@@ -62,5 +63,5 @@
 
 ---
 
-Last updated: February 25, 2026
+Last updated: February 26, 2026
 

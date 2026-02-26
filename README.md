@@ -99,7 +99,7 @@ Anima combines a Flutter app for premium dark UI with a Rust core for local cogn
 1. User sends a message.
 2. Rust stores the message and generates an embedding.
 3. Similar memories are retrieved via cosine similarity.
-4. Prompt is built with context + profile + language rules.
+4. A unified AAA System Prompt is built (identity, relational dynamics, memory anchor, guardrails, language override, and user directives).
 5. Model generates a response (sync or streaming).
 6. Final response and derived memory are persisted locally.
 
@@ -110,6 +110,7 @@ Anima combines a Flutter app for premium dark UI with a Rust core for local cogn
 - Token-by-token local chat streaming.
 - Persistent history + semantic memory retrieval (RAG).
 - Sleep Cycle consolidation into `profile_traits`.
+- Unified System Prompt (single template in Rust) with strict language override and dynamic variables (`{user_name}`, `{now}`, `{language}`, `{extra}`).
 - Advanced onboarding with wheel-based selector for 7 core languages.
 - Global locale updates are instant across all screens.
 - Premium dark UX across core screens.

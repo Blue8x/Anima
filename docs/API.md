@@ -88,8 +88,9 @@ await initApp(chatModelPath: 'models/anima_v1.gguf', embeddingModelPath: 'models
 
 - `send_message_stream` emits chunks; the UI should concatenate tokens and persist the final result (`save_assistant_message`).
 - Persisted language (`app_language`) affects both UI and backend prompt steering.
+- Backend chat uses a unified System Prompt template in `frontend/rust/src/ai.rs` with runtime placeholders: `{user_name}`, `{now}`, `{language}`, `{extra}`.
 - `factory_reset` clears `messages`, `memories`, `profile_traits`, and `config`, and resets message autoincrement state.
 
 ---
 
-Last updated: February 25, 2026
+Last updated: February 26, 2026

@@ -28,7 +28,7 @@ Anima is designed to:
   - config (name, language, prompt extras).
 - Semantic retrieval through cosine similarity.
 - Sleep cycle to consolidate raw memories into traits.
-- Prompt steering based on persisted language.
+- Unified AAA System Prompt in Rust with dynamic placeholders (`{user_name}`, `{now}`, `{language}`, `{extra}`) and strict language steering.
 - Local embedded translation dictionary for 7 primary languages (EN, ES, DE, RU, JP, ZH, AR).
 - DB export and transactional factory reset.
 
@@ -50,7 +50,7 @@ Anima is designed to:
 1. **Local privacy by design**.
 2. **Contextual memory during conversation**.
 3. **Cognitive consolidation through Sleep Cycle**.
-4. **Identity/tone control through base prompt + extras**.
+4. **Identity/tone control through a unified System Prompt + user extras**.
 5. **Persistent multilingual experience**.
 6. **Safe critical operations (export/reset)**.
 
@@ -63,5 +63,5 @@ Anima is designed to:
 ---
 
 **Status:** Functional V1 + visual polish completed  
-**Last Updated:** February 25, 2026
+**Last Updated:** February 26, 2026
 

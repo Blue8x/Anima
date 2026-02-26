@@ -30,7 +30,7 @@ Everything runs locally using Flutter (UI) + Rust (AI/data core).
 ### Backend (`frontend/rust/src`)
 
 - `api/simple.rs`: public API exposed through FRB.
-- `ai.rs`: prompting, streaming, embeddings, sleep cycle.
+- `ai.rs`: unified AAA system prompting, streaming, embeddings, sleep cycle.
 - `db.rs`: SQLite schema + CRUD + semantic retrieval.
 
 ## 4) Operational Data Model
@@ -49,7 +49,7 @@ The current database uses 4 main tables:
 2. It is stored in `messages`.
 3. Embedding is generated.
 4. Similar memories are retrieved from `memories` using cosine similarity.
-5. Context + profile + language rules are assembled.
+5. A unified System Prompt is assembled with identity/purpose, relational dynamics, chronological anchor, guardrails, language override, user directives, and consolidated profile.
 6. LLM responds (sync or stream).
 7. Response and related memory are persisted.
 
@@ -65,7 +65,15 @@ The current database uses 4 main tables:
 1. User selects language in onboarding or settings.
 2. It is saved in `config` (`app_language`).
 3. UI locale rebuilds instantly via global state.
-4. LLM prompt stays aligned with persisted language and latest message mirroring rules.
+4. LLM prompt is force-aligned with persisted language via explicit `LANGUAGE OVERRIDE` instruction.
+
+### D. Prompt Contract (Runtime)
+
+The base system prompt is a single template in `ai.rs` and injects:
+- `user_name`
+- `now`
+- `language`
+- `extra` (user directives)
 
 ## 6) Runtime Architecture
 
@@ -99,4 +107,4 @@ docs/
 
 ---
 
-Last updated: February 25, 2026
+Last updated: February 26, 2026

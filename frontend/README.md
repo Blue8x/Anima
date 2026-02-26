@@ -45,4 +45,5 @@ flutter build windows --release
 ## Notes
 
 - If you update Rust APIs, regenerate bindings before running the app.
+- Core chat behavior is controlled by a unified System Prompt template in `rust/src/ai.rs` with runtime placeholders: `{user_name}`, `{now}`, `{language}`, `{extra}`.
 - Windows one-command installer script lives in `../quickinstall/install.ps1`.
