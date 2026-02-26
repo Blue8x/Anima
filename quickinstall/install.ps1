@@ -13,7 +13,7 @@ Set-Location $installDir
 $appUrl = "https://github.com/Blue8x/Anima/releases/latest/download/anima-windows.zip"
 $zipPath = "$installDir\anima.zip"
 
-Write-Host "`n[1/4] Downloading the application core..." -ForegroundColor Yellow
+Write-Host "`n[1/5] Downloading the application core..." -ForegroundColor Yellow
 try {
     Invoke-WebRequest -Uri $appUrl -OutFile $zipPath -ErrorAction Stop
     Expand-Archive -Path $zipPath -DestinationPath $installDir -Force -ErrorAction Stop
@@ -26,24 +26,49 @@ try {
     # exit 
 }
 
-# 2.5 Download the Memory Core (Embedding Model) silently
-Write-Host "`n[2/4] Downloading Memory Core (This will take a few seconds)..." -ForegroundColor Yellow
-$embedUrl = "https://huggingface.co/bofenghuang/all-MiniLM-L6-v2-gguf/resolve/main/all-MiniLM-L6-v2-f16.gguf"
-$embedPath = "$installDir\all-MiniLM-L6-v2.gguf"
+# 3. Download the Memory Core (Interactive Flow)
+Write-Host "`n[2/5] Setting up the Memory Core (Required for long-term memory):" -ForegroundColor Cyan
+Write-Host "Opening your browser and the installation folder..." -ForegroundColor Green
+Write-Host "-> Please download the file 'all-MiniLM-L6-v2-f16.gguf' (or similar)."
+Write-Host "-> Move it into the Anima installation folder that just opened."
 
-try {
-    Invoke-WebRequest -Uri $embedUrl -OutFile $embedPath -ErrorAction Stop
-    Write-Host "Memory Core downloaded successfully!" -ForegroundColor Green
-} catch {
-    Write-Host "[WARNING] Could not download the Memory Core. Memory functions might be limited." -ForegroundColor Red
+$memoryUrl = "https://huggingface.co/bofenghuang/all-MiniLM-L6-v2-gguf/tree/main"
+Start-Sleep -Seconds 2
+
+# Abrimos la URL de memoria en el navegador
+Start-Process $memoryUrl
+# Abrimos la carpeta local
+Start-Process "explorer.exe" $installDir
+
+$memoryFound = $false
+while (-not $memoryFound) {
+    $confirm = Read-Host "`nHave you moved the Memory Core .gguf file to the folder? (Y/N)"
+    if ($confirm -match "^[Yy]$") {
+        # Buscamos cualquier archivo que contenga "MiniLM" en el nombre
+        $memFiles = Get-ChildItem -Path $installDir -Filter *MiniLM*.gguf
+        
+        if ($memFiles.Count -gt 0) {
+            Write-Host "Memory Core found! Configuring it..." -ForegroundColor Green
+            
+            $targetMemName = "all-MiniLM-L6-v2.gguf"
+            if ($memFiles[0].Name -ne $targetMemName) {
+                Rename-Item -Path $memFiles[0].FullName -NewName $targetMemName -Force
+                Write-Host "Memory Core automatically renamed to $targetMemName." -ForegroundColor DarkGray
+            }
+            $memoryFound = $true
+        } else {
+            Write-Host "[ERROR] No Memory Core file found in $installDir." -ForegroundColor Red
+            Write-Host "Make sure you downloaded the file containing 'MiniLM' and moved it to the folder." -ForegroundColor Yellow
+        }
+    }
 }
 
-# 3. Choose and Download the Brain (Interactive Flow)
-Write-Host "`n[3/4] Select the Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
+# 4. Choose and Download the Brain (Interactive Flow)
+Write-Host "`n[3/5] Select the Main Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
 Write-Host "  1. Small  (Fast, ~4GB RAM required) - Phi-3 Mini"
 Write-Host "  2. Medium (Recommended, ~8GB RAM required) - Llama 3 / Dolphin 8B"
 Write-Host "  3. Large  (High Quality, 16GB+ RAM required) - Mistral Nemo 12B"
-Write-Host "  4. Skip   (I already have a .gguf model)"
+Write-Host "  4. Skip   (I already have a main .gguf model)"
 
 $choice = Read-Host "Enter your choice (1-4)"
 $hfUrl = ""
@@ -57,45 +82,41 @@ switch ($choice) {
 }
 
 if ($hfUrl -ne "") {
-    Write-Host "`nOpening your browser and the installation folder..." -ForegroundColor Green
+    Write-Host "`nOpening your browser for the Main Brain..." -ForegroundColor Green
     Write-Host "-> Download any '.gguf' file from the HuggingFace page."
-    Write-Host "-> Move that file into the folder that just opened."
+    Write-Host "-> Move that file into the same folder."
     
     Start-Sleep -Seconds 2
-    
-    # Abrimos la URL en el navegador por defecto
     Start-Process $hfUrl
-    # Abrimos la carpeta local para que el usuario suelte ahi el archivo
-    Start-Process "explorer.exe" $installDir
 
     $modelFound = $false
     while (-not $modelFound) {
-        $confirm = Read-Host "`nHave you moved the .gguf file to the folder? (Y/N)"
+        $confirm = Read-Host "`nHave you moved the Main Brain .gguf file to the folder? (Y/N)"
         if ($confirm -match "^[Yy]$") {
-            # Buscamos si el usuario ha metido algun archivo .gguf (EXCLUYENDO el de memoria)
+            # Buscamos si el usuario ha metido el archivo grande (EXCLUYENDO el de memoria que ya renombramos)
             $ggufFiles = Get-ChildItem -Path $installDir -Filter *.gguf | Where-Object { $_.Name -ne "all-MiniLM-L6-v2.gguf" }
             
             if ($ggufFiles.Count -gt 0) {
-                Write-Host "Model found! Configuring it for Anima..." -ForegroundColor Green
+                Write-Host "Main Brain found! Configuring it for Anima..." -ForegroundColor Green
                 
                 # Renombramos el primer gguf (el grande) que encuentre a 'anima_v1.gguf'
                 $targetName = "anima_v1.gguf"
                 if ($ggufFiles[0].Name -ne $targetName) {
                     Rename-Item -Path $ggufFiles[0].FullName -NewName $targetName -Force
-                    Write-Host "Model automatically renamed to $targetName." -ForegroundColor DarkGray
+                    Write-Host "Main Brain automatically renamed to $targetName." -ForegroundColor DarkGray
                 }
                 
                 $modelFound = $true
             } else {
-                Write-Host "[ERROR] No main .gguf file found in $installDir." -ForegroundColor Red
+                Write-Host "[ERROR] No Main Brain .gguf file found in $installDir." -ForegroundColor Red
                 Write-Host "Please download it and move it to the folder before continuing." -ForegroundColor Yellow
             }
         }
     }
 }
 
-# 4. Create Desktop Shortcut
-Write-Host "`n[4/4] Setting up shortcuts..." -ForegroundColor Yellow
+# 5. Create Desktop Shortcut
+Write-Host "`n[5/5] Setting up shortcuts..." -ForegroundColor Yellow
 try {
     $WshShell = New-Object -comObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut("$Home\Desktop\Anima.lnk")
