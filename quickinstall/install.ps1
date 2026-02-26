@@ -65,20 +65,17 @@ while (-not $memoryFound) {
 
 # 4. Choose and Download the Brain (Interactive Flow)
 Write-Host "`n[3/4] Select the Main Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
-Write-Host "  1. Small  (Fast & Uncensored, ~2.0GB) - Dolphin 3.0 Llama 3.2 3B"
-Write-Host "  2. Medium (Smart & Uncensored, ~4.9GB) - Dolphin 3.0 Llama 3.1 8B"
-Write-Host "  3. Skip   (I already have my own .gguf model)"
+Write-Host "  1. Default (Smart & Uncensored, ~4.9GB) - Dolphin 3.0 Llama 3.1 8B"
+Write-Host "  2. Skip    (I already have my own .gguf model)"
 
-$choice = Read-Host "Enter your choice (1-3)"
+$choice = Read-Host "Enter your choice (1-2)"
 
-if ($choice -eq '1' -or $choice -eq '2') {
-    if ($choice -eq '1') { $hfUrl = "https://huggingface.co/bartowski/Dolphin3.0-Llama3.2-3B-GGUF/tree/main" }
-    if ($choice -eq '2') { $hfUrl = "https://huggingface.co/bartowski/Dolphin3.0-Llama3.1-8B-GGUF/tree/main" }
+if ($choice -eq '1') {
+    $hfUrl = "https://huggingface.co/dphn/Dolphin3.0-Llama3.1-8B-GGUF/resolve/main/Dolphin3.0-Llama3.1-8B-Q4_K_M.gguf?download=true"
 
-    Write-Host "`nOpening your browser for the Main Brain..." -ForegroundColor Green
-    Write-Host "-> Download a '.gguf' file from the HuggingFace page."
-    Write-Host "-> TIP: Download the 'Q4_K_M' version for the best balance of speed and size."
-    Write-Host "-> Move that file into the same folder."
+    Write-Host "`nOpening your browser to download the Main Brain..." -ForegroundColor Green
+    Write-Host "-> The download should start AUTOMATICALLY in your browser."
+    Write-Host "-> Once downloaded, move that file into the installation folder."
     
     Start-Sleep -Seconds 2
     Start-Process $hfUrl
@@ -109,6 +106,7 @@ if ($choice -eq '1' -or $choice -eq '2') {
     }
 } else {
     Write-Host "`n[INFO] Skipping automatic model download." -ForegroundColor Yellow
+    Write-Host "-> WARNING: We highly recommend using Option 1 for now to ensure Anima behaves correctly." -ForegroundColor Magenta
     Write-Host "-> The installation folder will open now."
     Write-Host "-> REMEMBER: Copy your own model into this folder and rename it EXACTLY to: " -NoNewline
     Write-Host "anima_v1.gguf" -ForegroundColor Cyan
