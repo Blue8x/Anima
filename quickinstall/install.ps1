@@ -65,9 +65,9 @@ while (-not $memoryFound) {
 
 # 4. Choose and Download the Brain (Interactive Flow)
 Write-Host "`n[3/4] Select the Main Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
-Write-Host "  1. Small  (Fast, ~4GB RAM required) - Phi-3 Mini"
-Write-Host "  2. Medium (Recommended, ~8GB RAM required) - Llama 3 / Dolphin 8B"
-Write-Host "  3. Large  (High Quality, 16GB+ RAM required) - Mistral Nemo 12B"
+Write-Host "  1. Small  (Super Fast, ~2.4GB) - Phi-3 Mini 4k"
+Write-Host "  2. Medium (Balanced, ~3.0GB) - Llama 3.2 3B"
+Write-Host "  3. Alt    (Creative, ~2.0GB) - Gemma 2 2B"
 Write-Host "  4. Skip   (I already have a main .gguf model)"
 
 $choice = Read-Host "Enter your choice (1-4)"
@@ -75,15 +75,15 @@ $hfUrl = ""
 
 switch ($choice) {
     '1' { $hfUrl = "https://huggingface.co/bartowski/Phi-3-mini-4k-instruct-GGUF/tree/main" }
-    '2' { $hfUrl = "https://huggingface.co/bartowski/Dolphin3.0-Llama3.1-8B-GGUF/tree/main" }
-    '3' { $hfUrl = "https://huggingface.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF/tree/main" }
+    '2' { $hfUrl = "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/tree/main" }
+    '3' { $hfUrl = "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/tree/main" }
     '4' { Write-Host "Skipping model download..." -ForegroundColor DarkGray }
     default { Write-Host "Invalid choice, skipping..." -ForegroundColor DarkGray }
 }
 
 if ($hfUrl -ne "") {
     Write-Host "`nOpening your browser for the Main Brain..." -ForegroundColor Green
-    Write-Host "-> Download any '.gguf' file from the HuggingFace page."
+    Write-Host "-> Download a '.gguf' file from the HuggingFace page (we recommend the 'Q4_K_M' version)."
     Write-Host "-> Move that file into the same folder."
     
     Start-Sleep -Seconds 2
