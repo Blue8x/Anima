@@ -118,18 +118,19 @@ if ($choice -eq '1') {
 Write-Host "`n[4/4] Setting up shortcuts..." -ForegroundColor Yellow
 try {
     $WshShell = New-Object -comObject WScript.Shell
-    $Shortcut = $WshShell.CreateShortcut("$Home\Desktop\Anima.lnk")
+    # Preguntamos a Windows por la ruta oficial del escritorio del usuario actual
+    $desktopPath = [Environment]::GetFolderPath("Desktop")
+    $Shortcut = $WshShell.CreateShortcut("$desktopPath\Anima.lnk")
     $Shortcut.TargetPath = "$installDir\anima.exe"
     $Shortcut.WorkingDirectory = "$installDir"
     
-    # Solo le pone el icono si existe el exe
     if (Test-Path "$installDir\anima.exe") {
         $Shortcut.IconLocation = "$installDir\anima.exe"
     }
     $Shortcut.Save()
-    Write-Host "Desktop shortcut created!" -ForegroundColor Green
+    Write-Host "Desktop shortcut created at $desktopPath!" -ForegroundColor Green
 } catch {
-    Write-Host "Could not create shortcut." -ForegroundColor DarkGray
+    Write-Host "Could not create shortcut. Error: $_" -ForegroundColor DarkGray
 }
 
 Write-Host "`nInstallation completed successfully!" -ForegroundColor Green
