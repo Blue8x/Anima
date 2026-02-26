@@ -66,6 +66,24 @@ class AnimaService {
     return File(absolutePath).absolute.path;
   }
 
+  void _printDetailedRustError(Object error) {
+    final errorText = error.toString();
+    var technical = errorText;
+
+    final bracketMatch = RegExp(r'\[Error del Sistema:\s*(.*?)\]').firstMatch(errorText);
+    if (bracketMatch != null) {
+      technical = bracketMatch.group(1) ?? errorText;
+    } else {
+      final rustMatch = RegExp(r'Error al generar respuesta LLM:\s*(.*)$').firstMatch(errorText);
+      if (rustMatch != null) {
+        technical = rustMatch.group(1) ?? errorText;
+      }
+    }
+
+    // ignore: avoid_print
+    print('Error detallado de Rust: $technical');
+  }
+
   Future<String> processMessage(String text, {String? appLanguage}) async {
     final stopwatch = Stopwatch()..start();
     _logger.i('processMessage start');
@@ -96,6 +114,7 @@ class AnimaService {
       return response;
     } catch (e, st) {
       stopwatch.stop();
+      _printDetailedRustError(e);
       _logger.e(
         'processMessage failed after ${stopwatch.elapsedMilliseconds}ms',
         error: e,
@@ -112,16 +131,22 @@ class AnimaService {
   }
 
   Stream<String> _streamMessageInternal(String text, {String? appLanguage}) async* {
-    await initialize();
-    if (appLanguage != null && appLanguage.trim().isNotEmpty) {
-      await setAppLanguage(appLanguage);
+    try {
+      await initialize();
+      if (appLanguage != null && appLanguage.trim().isNotEmpty) {
+        await setAppLanguage(appLanguage);
+      }
+      final configuredTemperature = await getTemperature();
+      yield* rust_simple.sendMessageStream(
+        message: text,
+        temperature: configuredTemperature,
+        maxTokens: 512,
+      );
+    } catch (e, st) {
+      _printDetailedRustError(e);
+      _logger.e('streamMessage failed', error: e, stackTrace: st);
+      rethrow;
     }
-    final configuredTemperature = await getTemperature();
-    yield* rust_simple.sendMessageStream(
-      message: text,
-      temperature: configuredTemperature,
-      maxTokens: 512,
-    );
   }
 
   Future<bool> saveAssistantMessage(String text) async {
@@ -154,6 +179,7 @@ class AnimaService {
       _logger.i('generateProactiveGreeting success length=${greeting.length}');
       return greeting;
     } catch (e, st) {
+      _printDetailedRustError(e);
       _logger.e('generateProactiveGreeting failed', error: e, stackTrace: st);
       rethrow;
     }

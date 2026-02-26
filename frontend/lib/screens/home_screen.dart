@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
           _cacheHomeState();
 
-      if (history.isEmpty) {
+          if (!_hasHistoryMessagesToday(history)) {
         await _generateProactiveGreetingIfNeeded();
       }
     } catch (e) {
@@ -117,7 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _generateProactiveGreetingIfNeeded() async {
     if (_hasRequestedProactiveGreeting) return;
-    if (_historyMessages.isNotEmpty || _sessionMessages.isNotEmpty) return;
+    if (_sessionMessages.isNotEmpty) return;
+    if (_hasHistoryMessagesToday(_historyMessages)) return;
 
     _hasRequestedProactiveGreeting = true;
     _cacheHomeState();
@@ -203,6 +204,21 @@ class _HomeScreenState extends State<HomeScreen> {
         SnackBar(content: Text('${tr(context, 'failedGenerateGreeting')}: $e')),
       );
     }
+  }
+
+  bool _hasHistoryMessagesToday(List<ChatMessage> messages) {
+    final now = DateTime.now();
+    for (final message in messages) {
+      final parsed = DateTime.tryParse(message.timestamp);
+      if (parsed == null) continue;
+      final local = parsed.toLocal();
+      final sameDay =
+          local.year == now.year && local.month == now.month && local.day == now.day;
+      if (sameDay) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void _scrollToBottom() {
@@ -310,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       id: message.id,
                       role: message.role,
                       content: message.content.isEmpty
-                          ? 'Error: $e'
+                          ? tr(context, 'systemFriendlyInferenceError')
                           : message.content,
                       timestamp: message.timestamp,
                     )
@@ -323,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(
-        SnackBar(content: Text('${tr(context, 'failedProcessMessage')}: $e')),
+        SnackBar(content: Text(tr(context, 'systemFriendlyInferenceError'))),
       );
     }
 

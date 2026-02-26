@@ -5,6 +5,7 @@ pub use crate::db::ChatMessage;
 pub use crate::db::MemoryItem;
 pub use crate::db::ProfileTrait;
 use crate::frb_generated::StreamSink;
+use std::panic::{self, AssertUnwindSafe};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::{Mutex, OnceLock};
@@ -34,19 +35,28 @@ pub fn send_message(message: String, temperature: f32, max_tokens: u32) -> Strin
 
     let effective_temperature = db::get_temperature().unwrap_or(temperature.clamp(0.1, 1.0));
 
-    let generated = match ai::generate_response_with_context(
-        &message,
-        &relevant_context,
-        effective_temperature,
-        max_tokens,
-    ) {
-        Ok(output) if !output.is_empty() => output,
-        Ok(_) => "[Error del Sistema: Falló la inferencia del modelo] Respuesta vacía".to_string(),
-        Err(error) => {
+    let safe_max_tokens = max_tokens.min(500);
+
+    let generation_result = panic::catch_unwind(AssertUnwindSafe(|| {
+        ai::generate_response_with_context(
+            &message,
+            &relevant_context,
+            effective_temperature,
+            safe_max_tokens,
+        )
+    }));
+
+    let generated = match generation_result {
+        Ok(Ok(output)) if !output.is_empty() => output,
+        Ok(Ok(_)) => {
+            "[Error del Sistema: Inferencia devolvió salida vacía (possible OOM, context limit, or sampling collapse)]".to_string()
+        }
+        Ok(Err(error)) => {
             let detail = format!("Error al generar respuesta LLM: {error}");
             eprintln!("{detail}");
             format!("[Error del Sistema: {detail}]")
         }
+        Err(_) => "[Error del Sistema: Error interno del motor] panic during inference".to_string(),
     };
 
     if let Err(error) = insert_message_with_timeout("assistant", &generated, Duration::from_secs(5)) {
@@ -71,19 +81,31 @@ pub fn send_message_stream(
 
     let effective_temperature = db::get_temperature().unwrap_or(temperature.clamp(0.1, 1.0));
 
-    let final_output = ai::generate_response_with_context_stream(
-        &message,
-        &relevant_context,
-        effective_temperature,
-        max_tokens,
-        |chunk| {
-            let _ = sink.add(chunk.to_string());
-            Ok(())
-        },
-    )?;
+    let safe_max_tokens = max_tokens.min(500);
+
+    let generation_result = panic::catch_unwind(AssertUnwindSafe(|| {
+        ai::generate_response_with_context_stream(
+            &message,
+            &relevant_context,
+            effective_temperature,
+            safe_max_tokens,
+            |chunk| {
+                let _ = sink.add(chunk.to_string());
+                Ok(())
+            },
+        )
+    }));
+
+    let final_output = match generation_result {
+        Ok(Ok(output)) => output,
+        Ok(Err(error)) => return Err(format!("Error al generar respuesta LLM: {error}")),
+        Err(_) => return Err("Error interno del motor: panic during inference".to_string()),
+    };
 
     if final_output.trim().is_empty() {
-        return Err("[Error del Sistema: Falló la inferencia del modelo] Respuesta vacía".to_string());
+        return Err(
+            "[Error del Sistema: Inferencia stream devolvió salida vacía (possible OOM, context limit, or sampling collapse)]".to_string(),
+        );
     }
 
     Ok(())
@@ -133,14 +155,19 @@ pub fn generate_proactive_greeting(time_of_day: String) -> Result<String, String
         return Err(format!("[Error del Sistema: Motor IA no cargado] {error}"));
     }
 
-    ai::generate_proactive_greeting(&time_of_day)
-        .and_then(|output| {
-            if output.trim().is_empty() {
-                Err("[Error del Sistema: Falló la inferencia del modelo] Respuesta vacía".to_string())
-            } else {
-                Ok(output)
-            }
-        })
+    let generation_result = panic::catch_unwind(AssertUnwindSafe(|| {
+        ai::generate_proactive_greeting(&time_of_day)
+    }));
+
+    match generation_result {
+        Ok(Ok(output)) if output.trim().is_empty() => Err(
+            "[Error del Sistema: Inferencia de saludo devolvió salida vacía (possible OOM, context limit, or sampling collapse)]"
+                .to_string(),
+        ),
+        Ok(Ok(output)) => Ok(output),
+        Ok(Err(error)) => Err(format!("Error al generar saludo LLM: {error}")),
+        Err(_) => Err("Error interno del motor: panic during greeting inference".to_string()),
+    }
 }
 
 #[flutter_rust_bridge::frb]

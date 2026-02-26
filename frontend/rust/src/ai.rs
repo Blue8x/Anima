@@ -15,9 +15,9 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_N_CTX: u32 = 2048;
-const REPEAT_PENALTY: f32 = 1.18;
+const REPEAT_PENALTY: f32 = 1.10;
 const REPEAT_LAST_N: i32 = 128;
-const STOP_SEQUENCES: [&str; 4] = ["\nAlex:", "\nUser:", "<|im_end|>", "<|eot_id|>"];
+const STOP_SEQUENCES: [&str; 5] = ["\nAlex:", "\nUser:", "<|im_end|>", "<|eot_id|>", "<|end|>"];
 const SUBCONSCIOUS_SYSTEM_PROMPT: &str = r#"Analyze the conversation and extract information strictly in JSON format with two keys:
 
 "semantic": Array of strings containing timeless facts, personality traits, rules, fears, and core identity.
@@ -706,14 +706,14 @@ where
         .new_context(&backend, context_params)
         .map_err(|error| format!("Context creation failed: {error}"))?;
 
-    let llama3_prompt = format!(
-        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{}\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{}\n<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+    let prompt_text = format!(
+        "<|system|> {} <|end|>\n<|user|> {} <|end|>\n<|assistant|>",
         system_prompt, user_prompt
     );
 
     let prompt_tokens = runtime
         .model
-        .str_to_token(&llama3_prompt, AddBos::Never)
+        .str_to_token(&prompt_text, AddBos::Never)
         .map_err(|error| format!("Prompt tokenization failed: {error}"))?;
 
     if prompt_tokens.is_empty() {

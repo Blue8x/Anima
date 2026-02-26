@@ -122,6 +122,15 @@ class AppTranslations {
       'ZH': '处理消息失败',
       'AR': 'فشل في معالجة الرسالة',
     },
+      'systemFriendlyInferenceError': {
+        'EN': '[System Error: I could not answer right now. Please try again.]',
+        'ES': '[Error del Sistema: No pude responder ahora mismo. Inténtalo de nuevo.]',
+        'DE': '[Systemfehler: Ich konnte gerade nicht antworten. Bitte versuche es erneut.]',
+        'RU': '[Системная ошибка: Сейчас не удалось ответить. Попробуйте ещё раз.]',
+        'JP': '[システムエラー: 現在応答できませんでした。もう一度お試しください。]',
+        'ZH': '[系统错误：当前无法回答，请稍后重试。]',
+        'AR': '[خطأ في النظام: تعذّر الرد الآن. يرجى المحاولة مرة أخرى.]',
+      },
     'failedGenerateGreeting': {
       'EN': 'Failed to generate greeting',
       'ES': 'Error al generar saludo',
