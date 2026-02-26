@@ -65,21 +65,16 @@ while (-not $memoryFound) {
 
 # 4. Choose and Download the Brain (Interactive Flow)
 Write-Host "`n[3/4] Select the Main Brain (AI Model) size that fits your PC:" -ForegroundColor Cyan
-Write-Host "  1. Small  (Fast & Uncensored, ~2.4GB) - Phi-3.5 Mini Uncensored"
-Write-Host "  2. Medium (Smart & Uncensored, ~2.3GB) - Llama 3.2 3B Uncensored"
-Write-Host "  3. Skip   (I already have a main .gguf model)"
+Write-Host "  1. Small  (Fast & Uncensored, ~2.0GB) - Dolphin 3.0 Llama 3.2 3B"
+Write-Host "  2. Medium (Smart & Uncensored, ~4.9GB) - Dolphin 3.0 Llama 3.1 8B"
+Write-Host "  3. Skip   (I already have my own .gguf model)"
 
 $choice = Read-Host "Enter your choice (1-3)"
-$hfUrl = ""
 
-switch ($choice) {
-    '1' { $hfUrl = "https://huggingface.co/bartowski/Phi-3.5-mini-instruct_Uncensored-GGUF/tree/main" }
-    '2' { $hfUrl = "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-uncensored-GGUF/tree/main" }
-    '3' { Write-Host "Skipping model download..." -ForegroundColor DarkGray }
-    default { Write-Host "Invalid choice, skipping..." -ForegroundColor DarkGray }
-}
+if ($choice -eq '1' -or $choice -eq '2') {
+    if ($choice -eq '1') { $hfUrl = "https://huggingface.co/bartowski/Dolphin3.0-Llama3.2-3B-GGUF/tree/main" }
+    if ($choice -eq '2') { $hfUrl = "https://huggingface.co/bartowski/Dolphin3.0-Llama3.1-8B-GGUF/tree/main" }
 
-if ($hfUrl -ne "") {
     Write-Host "`nOpening your browser for the Main Brain..." -ForegroundColor Green
     Write-Host "-> Download a '.gguf' file from the HuggingFace page."
     Write-Host "-> TIP: Download the 'Q4_K_M' version for the best balance of speed and size."
@@ -112,6 +107,13 @@ if ($hfUrl -ne "") {
             }
         }
     }
+} else {
+    Write-Host "`n[INFO] Skipping automatic model download." -ForegroundColor Yellow
+    Write-Host "-> The installation folder will open now."
+    Write-Host "-> REMEMBER: Copy your own model into this folder and rename it EXACTLY to: " -NoNewline
+    Write-Host "anima_v1.gguf" -ForegroundColor Cyan
+    Start-Sleep -Seconds 4
+    Start-Process "explorer.exe" $installDir
 }
 
 # 5. Create Desktop Shortcut
