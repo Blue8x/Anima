@@ -33,20 +33,6 @@ class AnimaService {
       final chatModelPath = _resolveModelPath('anima_v1.gguf');
       final embeddingModelPath = _resolveModelPath('all-MiniLM-L6-v2.gguf');
 
-      if (chatModelPath == null) {
-        final localAppData = Platform.environment['LOCALAPPDATA'] ?? '';
-        throw Exception(
-          'Model file not found exactly at: $localAppData${Platform.pathSeparator}Anima${Platform.pathSeparator}anima_v1.gguf',
-        );
-      }
-
-      if (embeddingModelPath == null) {
-        final localAppData = Platform.environment['LOCALAPPDATA'] ?? '';
-        throw Exception(
-          'Embedding model file not found exactly at: $localAppData${Platform.pathSeparator}Anima${Platform.pathSeparator}all-MiniLM-L6-v2.gguf',
-        );
-      }
-
       _logger.i('Initializing Rust AI models');
       await rust_simple.initApp(
         chatModelPath: chatModelPath,
@@ -64,39 +50,20 @@ class AnimaService {
     }
   }
 
-  String? _resolveModelPath(String fileName) {
-    final candidates = <String>[];
-
+  String _resolveModelPath(String fileName) {
     final localAppData = Platform.environment['LOCALAPPDATA'];
-    if (localAppData != null && localAppData.trim().isNotEmpty) {
-      candidates.add('$localAppData${Platform.pathSeparator}Anima${Platform.pathSeparator}$fileName');
-      candidates.add(
-        '$localAppData${Platform.pathSeparator}Anima${Platform.pathSeparator}models${Platform.pathSeparator}$fileName',
-      );
+    if (localAppData == null || localAppData.trim().isEmpty) {
+      throw Exception('LOCALAPPDATA is not available in this environment.');
     }
 
-    final executableDir = File(Platform.resolvedExecutable).parent.path;
-    candidates.add('$executableDir${Platform.pathSeparator}$fileName');
-    candidates.add(
-      '$executableDir${Platform.pathSeparator}models${Platform.pathSeparator}$fileName',
-    );
+    final absolutePath =
+        '$localAppData${Platform.pathSeparator}Anima${Platform.pathSeparator}$fileName';
 
-    final cwd = Directory.current.path;
-    candidates.add('$cwd${Platform.pathSeparator}models${Platform.pathSeparator}$fileName');
-    candidates.add(
-      '$cwd${Platform.pathSeparator}..${Platform.pathSeparator}models${Platform.pathSeparator}$fileName',
-    );
-    candidates.add(
-      '$cwd${Platform.pathSeparator}..${Platform.pathSeparator}..${Platform.pathSeparator}models${Platform.pathSeparator}$fileName',
-    );
-
-    for (final candidate in candidates) {
-      if (File(candidate).existsSync()) {
-        return File(candidate).absolute.path;
-      }
+    if (!File(absolutePath).existsSync()) {
+      throw Exception('Model file not found exactly at: $absolutePath');
     }
 
-    return null;
+    return File(absolutePath).absolute.path;
   }
 
   Future<String> processMessage(String text, {String? appLanguage}) async {
