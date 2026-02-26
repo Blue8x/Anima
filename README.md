@@ -13,7 +13,7 @@
 
 Anima is a **100% local** AI companion (Rust + Flutter) designed to chat, remember, and evolve with you without relying on external APIs or cloud services.
 
-CA: Coming soon
+CA: F2fpsUDFxQEnM6Fji1wCWq61BHtuZZ3tt54DmjLApump
 <br/>
 Support us: ANiMAZh5twD6mCm2RaYsw1VnYdbkWFsKvC6mz5UY5NEf (Solana wallet)
 <br/>
