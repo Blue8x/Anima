@@ -17,6 +17,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_N_CTX: u32 = 2048;
 const SAFE_N_BATCH: u32 = 512;
+const SAFE_N_THREADS: i32 = 4;
 const REPEAT_PENALTY: f32 = 1.20;
 const REPEAT_LAST_N: i32 = 128;
 const MAX_GENERATION_TOKENS: u32 = 512;
@@ -94,7 +95,9 @@ fn init_chat_model(backend: &LlamaBackend, model_path: &str) -> Result<(), Strin
     let context_params = LlamaContextParams::default()
         .with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX))
         .with_n_batch(SAFE_N_BATCH)
-        .with_n_ubatch(SAFE_N_BATCH);
+        .with_n_ubatch(SAFE_N_BATCH)
+        .with_n_threads(SAFE_N_THREADS)
+        .with_n_threads_batch(SAFE_N_THREADS);
     let context = leaked_model
         .new_context(backend, context_params)
         .map_err(|error| format!("Context creation failed: {error}"))?;
@@ -172,6 +175,8 @@ pub fn generate_embedding(text: &str) -> Result<Vec<f32>, String> {
         .with_n_ctx(NonZeroU32::new(DEFAULT_N_CTX))
         .with_n_batch(SAFE_N_BATCH)
         .with_n_ubatch(SAFE_N_BATCH)
+        .with_n_threads(SAFE_N_THREADS)
+        .with_n_threads_batch(SAFE_N_THREADS)
         .with_embeddings(true)
         .with_pooling_type(LlamaPoolingType::Mean);
 
